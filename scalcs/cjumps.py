@@ -3,14 +3,12 @@
 __author__="remis"
 __date__ ="$08-Nov-2011 21:43:14$"
 
-import sys
-from math import*
-
 import numpy as np
-from scipy.special import erf
 import scipy.integrate as scpi
+from scipy.special import erf
 
 from scalcs import qmatlib as qml
+
 
 def dPdt(P, t, mec, cfunc, cargs):
     """
@@ -78,7 +76,7 @@ def pulse_instexp(t, pars):
         if t <= prepulse:
             conc = 0.0
         else:
-            conc = cmax * exp(-(t - prepulse) / tdec)
+            conc = cmax * np.exp(-(t - prepulse) / tdec)
     else:
         t1 = np.extract(t[:] < prepulse, t)
         t2 = np.extract(t[:] >= prepulse, t)
@@ -158,7 +156,7 @@ def pulse_square(t, pars):
 
     return conc + cb
 
-def pulse_square_paired(t, ):
+def pulse_square_paired(t, pars):
 #def pulse_square_paired(t, (cmax, cb, prepulse, pulse, inter)):
     """
     Generate paired square pulses.
@@ -348,15 +346,16 @@ def weighted_taus(mec, cmax, width, eff='c'):
     max_ampl_on = np.max(np.abs(ampl_on))
     rel_ampl_on = ampl_on / max_ampl_on
     tau_on_weighted = np.sum(-rel_ampl_on[:-1] * (-1 / eigsInf[:-1]))
-    tau_on = -1 / eigsInf[:-1]
+#    tau_on = -1 / eigsInf[:-1]
 
     ampl_off = np.sum(w_off[:, :mec.kA], axis=1)
     max_ampl_off = np.max(np.abs(ampl_off))
     rel_ampl_off = ampl_off / max_ampl_off
     tau_off_weighted = np.sum(rel_ampl_off[: -1] * (-1 / eigs0[:-1]))
-    tau_off = -1 / eigs0[:-1]
+#    tau_off = -1 / eigs0[:-1]
 
-    return tau_on_weighted, tau_on, tau_off_weighted, tau_off
+    #return tau_on_weighted, tau_on, tau_off_weighted, tau_off
+    return tau_on_weighted, tau_off_weighted
 
 def printout(mec, cmax, width, eff='c'):
     """
@@ -393,7 +392,7 @@ def printout(mec, cmax, width, eff='c'):
     for i in range(mec.k):
         str += ('pt({0:d}) = '.format(i+1) + '{0:.5g}\n'.format(Pt[i]))
 
-    tau_on_weighted, tau_on, tau_off_weighted, tau_off = weighted_taus(mec, cmax, width, eff='c')
+    tau_on_weighted, tau_off_weighted = weighted_taus(mec, cmax, width, eff='c')
 
     str += ('\nON-RELAXATION for ideal step:\n' +
         'Time course for current\n' +
@@ -456,4 +455,3 @@ def printout(mec, cmax, width, eff='c'):
     str += ('Total area (pC) = {0:.5g}\n'.format(np.sum(area_off)))
  
     return str
- 
