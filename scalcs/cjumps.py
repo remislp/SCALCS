@@ -12,7 +12,7 @@ from scalcs import qmatlib as qml
 
 def dPdt(P, t, mec, cfunc, cargs):
     """
-    Calculate derivativ of occupancies.
+    Calculate derivative of occupancies.
     dP/dt = P * Q
 
     Parameters
@@ -30,19 +30,18 @@ def dPdt(P, t, mec, cfunc, cargs):
 
     Returns
     -------
-    dpdt : ndarray
+    dp/dt : ndarray
         Derivative of each state occupancy.
     """
     
-    conc = cfunc(t, cargs)
-    mec.set_eff('c', conc)
-    dpdt = np.dot(P, mec.Q)
-    return dpdt
+    mec.set_eff('c', cfunc(t, cargs))
+    return np.dot(P, mec.Q)
 
 def P_t(t, eigs, w):
     Pt = np.zeros((eigs.shape))
     for i in range(eigs.size):
         Pt[i] = np.sum(w[:, i] * np.exp(eigs * t))
+    #Pt = np.sum(w * np.exp(eigs * t).reshape(w.shape[0],1,1), axis=1)
     return Pt
 
 def pulse_instexp(t, pars):
