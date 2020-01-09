@@ -9,6 +9,7 @@ from scipy.special import erf
 
 from scalcs import qmatlib as qml
 
+
 ##### Calculate occupancies and rate of change of occupancies #####
 ##### using Q-matrix formalism #####
 
@@ -61,10 +62,9 @@ def P_t(t, eigs, w):
     Pt = np.zeros((eigs.shape))
     for i in range(eigs.size):
         Pt[i] = np.sum(w[:, i] * np.exp(eigs * t))
-    #Pt = np.sum(w * np.exp(eigs * t).reshape(w.shape[0],1,1), axis=1)
     return Pt
 
-def coefficient_calc(k, A, p_occup):
+def coefficient_calc(k, A, p):
     """
     Calculate weighted components for relaxation for each state p * An.
 
@@ -74,7 +74,7 @@ def coefficient_calc(k, A, p_occup):
         Number of states in mechanism.
     A : array-like, shape (k, k, k)
         Spectral matrices of Q matrix.
-    p_occup : array-like, shape (k, 1)
+    p : array-like, shape (k, 1)
         Occupancies of mechanism states.
 
     Returns
@@ -84,7 +84,7 @@ def coefficient_calc(k, A, p_occup):
 
     w = np.zeros((k, k))
     for n in range (k):
-        w[n, :] = np.dot(p_occup, A[n, :, :])
+        w[n, :] = np.dot(p, A[n, :, :])
     return w
 
 ##### Calculate macroscopic current response #####

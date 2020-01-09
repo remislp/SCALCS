@@ -32,6 +32,30 @@ def CH82():
 
     return  mechanism.Mechanism(RateList, CycleList, mtitle=mectitle, rtitle=ratetitle) #, fastblk, KBlk)
 
+def CCCDO():
+    
+    mectitle = 'C-C-CD-O'
+    ratetitle = 'Colquhoun Hawkes 1995'
+
+    A2D  = mechanism.State('B', 'A2D', 0.0)
+    A2RS = mechanism.State('A', 'A2R*', 50e-12)
+    A2R  = mechanism.State('B', 'A2R',  0.0)
+    AR   = mechanism.State('B', 'AR',   0.0)
+    R    = mechanism.State('C', 'R',    0.0)
+
+    RateList = [
+         mechanism.Rate(46.5,       A2R,  A2RS, name='beta',  limits=[1e-15,1e+7]),
+         mechanism.Rate(91.6,       A2RS, A2R,  name='alpha', limits=[1e-15,1e+7]),
+         mechanism.Rate(1.8,        A2D,  A2RS, name='doff',  limits=[1e-15,1e+7]),
+         mechanism.Rate(8.4,        A2RS, A2D,  name='don',   limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 4.7,    A2R,  AR,   name='2koff', limits=[1e-15,1e+7]),
+         mechanism.Rate(5.0e06,     AR,   A2R,  name='kon',   eff='c', limits=[1e-15,1e+10]),
+         mechanism.Rate(4.7,        AR,   R,    name='koff',  limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 5.0e06, R,    AR,   name='2kon',  eff='c', limits=[1e-15,1e+10]),
+         ]
+
+    return  mechanism.Mechanism(RateList, mtitle=mectitle, rtitle=ratetitle)
+
 def AChR_diamond():
     
     mectitle = 'diamond'
