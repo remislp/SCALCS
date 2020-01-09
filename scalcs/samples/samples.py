@@ -32,6 +32,42 @@ def CH82():
 
     return  mechanism.Mechanism(RateList, CycleList, mtitle=mectitle, rtitle=ratetitle) #, fastblk, KBlk)
 
+def CH82d():
+    """ CH82 mechanism with desensitisation from diliganded open state."""
+    
+    mectitle = 'CH82d'
+    ratetitle = 'CH82 numerical example'
+
+    A2D  = mechanism.State('B', 'A2D', 0.0)
+    A2RS = mechanism.State('A', 'A2R*', 60e-12)
+    ARS  = mechanism.State('A', 'AR*', 60e-12)
+    A2R  = mechanism.State('B', 'A2R', 0.0)
+    AR   = mechanism.State('B', 'AR', 0.0)
+    R    = mechanism.State('C', 'R', 0.0)
+
+    RateList = [
+         mechanism.Rate(100, A2RS, A2D, name='don', limits=[1e-15,1e+7]),
+         mechanism.Rate(50, A2D, A2RS, name='doff', limits=[1e-15,1e+7]),
+         mechanism.Rate(15.0, AR, ARS, name='beta1', limits=[1e-15,1e+7]),
+         mechanism.Rate(15000.0, A2R, A2RS, name='beta2', limits=[1e-15,1e+7]),
+         mechanism.Rate(3000.0, ARS, AR, name='alpha1', limits=[1e-15,1e+7]),
+         mechanism.Rate(500.0, A2RS, A2R, name='alpha2', limits=[1e-15,1e+7]),
+         mechanism.Rate(2000.0, AR, R, name='k(-1)', limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 2000.0, A2R, AR, name='2k(-2)', limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 5.0e07, R, AR, name='2k(+1)', eff='c', limits=[1e-15,1e+10]),
+         mechanism.Rate(5.0e08, ARS, A2RS, name='k*(+2)', eff='c', fixed=True, limits=[1e-15,1e+10]),
+         mechanism.Rate(5.0e08, AR, A2R, name='k(+2)', eff='c', limits=[1e-15,1e+10]),
+         #mechanism.Rate(2 * 1.0 / 3.0, A2RS, ARS, name='k*(-2)', limits=[1e-15,1e+7])
+         mechanism.Rate(0.66667, A2RS, ARS, name='2k*(-2)', mr=True, limits=[1e-15,1e+7])
+         ]
+
+    CycleList = [mechanism.Cycle(['A2R*', 'AR*', 'AR', 'A2R'], ['A2R*', 'AR*'])]
+
+    fastblk = False
+    KBlk = 0.001
+
+    return  mechanism.Mechanism(RateList, CycleList, mtitle=mectitle, rtitle=ratetitle) #, fastblk, KBlk)
+
 def CCCDO():
     
     mectitle = 'C-C-CD-O'
