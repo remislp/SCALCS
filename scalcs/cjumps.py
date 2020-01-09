@@ -9,18 +9,21 @@ from scipy.special import erf
 
 from scalcs import qmatlib as qml
 
+##### Calculate occupancies and rate of change of occupancies #####
+##### using Q-matrix formalism #####
 
 def dPdt(P, t, mec, cfunc, cargs):
     """
-    Calculate derivative of occupancies.
+    Calculate the rate of change (derivative) of state occupancies:
+
     dP/dt = P * Q
 
     Parameters
     ----------
     P : ndarray
-        Occupancies.
+        Vector containing occupancies of each of states.
     t : float
-        Time.
+        Time from the start.
     mec : dcpyps.Mechanism
         The mechanism to be analysed.
     cfunc : function
@@ -38,11 +41,144 @@ def dPdt(P, t, mec, cfunc, cargs):
     return np.dot(P, mec.Q)
 
 def P_t(t, eigs, w):
+    """
+    Calculate occupancies at given time.
+
+    Parameters
+    ----------
+    t : float
+        Time from the start.
+    eigs : ndarray
+        Vector containing eigenvalues.
+    w : ndarray
+        The amplitudes of each k-1 component.
+
+    Returns
+    -------
+    Pt : ndarray
+        Vector containing occupancies of each of k states.
+    """
     Pt = np.zeros((eigs.shape))
     for i in range(eigs.size):
         Pt[i] = np.sum(w[:, i] * np.exp(eigs * t))
     #Pt = np.sum(w * np.exp(eigs * t).reshape(w.shape[0],1,1), axis=1)
     return Pt
+
+def coefficient_calc(k, A, p_occup):
+    """
+    Calculate weighted components for relaxation for each state p * An.
+
+    Parameters
+    ----------
+    k : int
+        Number of states in mechanism.
+    A : array-like, shape (k, k, k)
+        Spectral matrices of Q matrix.
+    p_occup : array-like, shape (k, 1)
+        Occupancies of mechanism states.
+
+    Returns
+    -------
+    w : ndarray, shape (k, k)
+    """
+
+    w = np.zeros((k, k))
+    for n in range (k):
+        w[n, :] = np.dot(p_occup, A[n, :, :])
+    return w
+
+##### Calculate macroscopic current response #####
+
+def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
+    """
+    Calculate response to a concentration pulse by integration.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    reclen : float
+        Trace length.
+    step : float
+        Sampling time interval.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+    rtol, atol : float, optional
+        Tolerance limits for the error control performed by the scipy.odeint solver.
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    P : ndarray
+        All state occupancies.
+    Popen : ndarray
+        Open probability.
+    """
+
+    t = np.arange(0, reclen, step)
+    mec.set_eff('c', cargs[1])
+    P0 = qml.pinf(mec.Q)
+    Pt = scpi.odeint(dPdt, P0, t, args=(mec, cfunc, cargs),
+        atol=abserr,rtol=relerr)
+    P = Pt.transpose()
+    Popen = np.sum(P[: mec.kA], axis=0)
+    c =  cfunc(t, cargs)
+    return t, c, Popen, P
+
+def calc_jump (mec, reclen, step, cfunc, cargs):
+    """
+    Calculate response to a concentration pulse directly from Q matrix.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    reclen : float
+        Trace length.
+    step : float
+        Sampling time interval.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    P : ndarray
+        All state occupancies.
+    Popen : ndarray
+        Open probability.
+    """
+
+    t = np.arange(0, reclen, step)
+    c =  cfunc(t, cargs)
+    mec.set_eff('c', cargs[1])
+    pi = qml.pinf(mec.Q)
+    Pt = np.array([pi.copy()])
+
+    for i in range(1, t.shape[0]):
+        mec.set_eff('c', c[i])
+        eigenvals, A = qml.eigs_sorted(mec.Q)
+        w = coefficient_calc(mec.k, A, pi)
+        pi = P_t(step, eigenvals, w)
+        Pt = np.append(Pt, [pi.copy()], axis=0)
+
+    P = Pt.transpose()
+    Popen = np.sum(P[: mec.kA], axis=0)
+    return t, c, Popen, P
+
+
+
+##### Concentration pulse profiles #####
 
 def pulse_instexp(t, pars):
 #def pulse_instexp(t, (cmax, cb, prepulse, tdec)):
@@ -202,115 +338,8 @@ def pulse_square_paired(t, pars):
 
     return conc + cb
 
-def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
-    """
-    Calculate response to a concentration pulse by integration.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-    reclen : float
-        Trace length.
-    step : float
-        Sampling time interval.
-    cfunc : function
-        Concentration profile.
-    cargs : tuple
-        Arguments for cfunc(t, cargs).
-    rtol, atol : float, optional
-        Tolerance limits for the error control performed by the scipy.odeint solver.
-
-    Returns
-    -------
-    t : ndarray
-        Time samples.
-    c : ndarray
-        Concentration profile.
-    P : ndarray
-        All state occupancies.
-    Popen : ndarray
-        Open probability.
-    """
-
-    t = np.arange(0, reclen, step)
-    mec.set_eff('c', cargs[1])
-    P0 = qml.pinf(mec.Q)
-    Pt = scpi.odeint(dPdt, P0, t, args=(mec, cfunc, cargs),
-        atol=abserr,rtol=relerr)
-    P = Pt.transpose()
-    Popen = np.sum(P[: mec.kA], axis=0)
-    c =  cfunc(t, cargs)
-    return t, c, Popen, P
-
-def calc_jump (mec, reclen, step, cfunc, cargs):
-    """
-    Calculate response to a concentration pulse directly from Q matrix.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-    reclen : float
-        Trace length.
-    step : float
-        Sampling time interval.
-    cfunc : function
-        Concentration profile.
-    cargs : tuple
-        Arguments for cfunc(t, cargs).
-
-    Returns
-    -------
-    t : ndarray
-        Time samples.
-    c : ndarray
-        Concentration profile.
-    P : ndarray
-        All state occupancies.
-    Popen : ndarray
-        Open probability.
-    """
-
-    t = np.arange(0, reclen, step)
-    c =  cfunc(t, cargs)
-    mec.set_eff('c', cargs[1])
-    pi = qml.pinf(mec.Q)
-    Pt = np.array([pi.copy()])
-
-    for i in range(1, t.shape[0]):
-        mec.set_eff('c', c[i])
-        eigenvals, A = qml.eigs_sorted(mec.Q)
-        w = coefficient_calc(mec.k, A, pi)
-        pi = P_t(step, eigenvals, w)
-        Pt = np.append(Pt, [pi.copy()], axis=0)
-
-    P = Pt.transpose()
-    Popen = np.sum(P[: mec.kA], axis=0)
-    return t, c, Popen, P
-
-def coefficient_calc(k, A, p_occup):
-    """
-    Calculate weighted components for relaxation for each state p * An.
-
-    Parameters
-    ----------
-    k : int
-        Number of states in mechanism.
-    A : array-like, shape (k, k, k)
-        Spectral matrices of Q matrix.
-    p_occup : array-like, shape (k, 1)
-        Occupancies of mechanism states.
-
-    Returns
-    -------
-    w : ndarray, shape (k, k)
-    """
-
-    w = np.zeros((k, k))
-    for n in range (k):
-        w[n, :] = np.dot(p_occup, A[n, :, :])
-    return w
+##### Printout and related utility functions. #####
+# TODO: need drastic refactoring
 
 def weighted_taus(mec, cmax, width, eff='c'):
     """
@@ -359,11 +388,10 @@ def weighted_taus(mec, cmax, width, eff='c'):
 def printout(mec, cmax, width, eff='c'):
     """
     """
-
     #TODO: on/off binding
     #TODO: move some of calculations from here to separate functions
     
-    str = ('\n*******************************************\n' +
+    str_out = ('\n*******************************************\n' +
         'CONCENTRATION JUMPS\n')
 
     gamma = 30 # Conductance in pS
@@ -372,32 +400,32 @@ def printout(mec, cmax, width, eff='c'):
     mec.set_eff(eff, 0)
     P0 = qml.pinf(mec.Q)
     eigs0, A0 = qml.eigs_sorted(mec.Q)
-    str += ('\nEquilibrium occupancies before t=0, at concentration = 0.0:\n')
+    str_out += ('\nEquilibrium occupancies before t=0, at concentration = 0.0:\n')
     for i in range(mec.k):
-        str += ('p00({0:d}) = {1:.5g}\n'.format(i+1, P0[i]))
+        str_out += ('p00({0:d}) = {1:.5g}\n'.format(i+1, P0[i]))
 
     mec.set_eff(eff, cmax)
     Pinf = qml.pinf(mec.Q)
     eigsInf, Ainf = qml.eigs_sorted(mec.Q)
     w_on = coefficient_calc(mec.k, Ainf, P0)
-    str += ('\nEquilibrium occupancies at maximum concentration = {0:.5g} mM:\n'
+    str_out += ('\nEquilibrium occupancies at maximum concentration = {0:.5g} mM:\n'
         .format(cmax * 1000))
     for i in range(mec.k):
-        str += ('pinf({0:d}) = '.format(i+1) + '{0:.5g}\n'.format(Pinf[i]))
+        str_out += ('pinf({0:d}) = '.format(i+1) + '{0:.5g}\n'.format(Pinf[i]))
 
     Pt = P_t(width, eigsInf, w_on)
-    str += ('\nOccupancies at the end of {0:.5g} ms pulse:\n'.
+    str_out += ('\nOccupancies at the end of {0:.5g} ms pulse:\n'.
         format(width * 1000))
     for i in range(mec.k):
-        str += ('pt({0:d}) = '.format(i+1) + '{0:.5g}\n'.format(Pt[i]))
+        str_out += ('pt({0:d}) = '.format(i+1) + '{0:.5g}\n'.format(Pt[i]))
 
     tau_on_weighted, tau_off_weighted = weighted_taus(mec, cmax, width, eff='c')
 
-    str += ('\nON-RELAXATION for ideal step:\n' +
+    str_out += ('\nON-RELAXATION for ideal step:\n' +
         'Time course for current\n' +
         '\nComp\tEigen\t\tTau (ms)\n')
     for i in range(mec.k-1):
-        str += ('{0:d}\t'.format(i+1) +
+        str_out += ('{0:d}\t'.format(i+1) +
             '{0:.5g}\t\t'.format(eigsInf[i]) +
             '{0:.5g}\t\n'.format(-1000 / eigsInf[i])) # convert to ms
 
@@ -406,30 +434,30 @@ def printout(mec, cmax, width, eff='c'):
     max_ampl_on = np.max(np.abs(ampl_on))
     rel_ampl_on = ampl_on / max_ampl_on
     area_on = -cur_on[:-1] / eigsInf[:-1]
-    str += ('\nAmpl.(t=0,pA)\tRel.ampl.\t\tArea(pC)\n')
+    str_out += ('\nAmpl.(t=0,pA)\tRel.ampl.\t\tArea(pC)\n')
     for i in range(mec.k-1):
-        str += ('{0:.5g}\t\t'.format(cur_on[i]) +
+        str_out += ('{0:.5g}\t\t'.format(cur_on[i]) +
             '{0:.5g}\t\t'.format(rel_ampl_on[i]) +
             '{0:.5g}\t\n'.format(area_on[i] * 1000))
 
-    str += ('\nWeighted On Tau (ms) = {0:.5g}\n'.format(tau_on_weighted * 1000))
-    str += ('\nTotal current at t=0 (pA) = {0:.5g}\n'.
+    str_out += ('\nWeighted On Tau (ms) = {0:.5g}\n'.format(tau_on_weighted * 1000))
+    str_out += ('\nTotal current at t=0 (pA) = {0:.5g}\n'.
         format(np.sum(cur_on)))
-    str += ('Total current at equilibrium (pA) = {0:.5g}\n'.
+    str_out += ('Total current at equilibrium (pA) = {0:.5g}\n'.
         format(cur_on[-1]))
-    str += ('Total area (pC) = {0:.5g}\n'.
+    str_out += ('Total area (pC) = {0:.5g}\n'.
         format(np.sum(area_on)))
     #TODO: Current at the end of pulse
     ct = cur_on[:-1] * np.exp(width * eigsInf[:-1])
-    str += ('Current at the end of {0:.5g}'.format(width
+    str_out += ('Current at the end of {0:.5g}'.format(width
         * 1000) + ' ms pulse = {0:.5g}\n'.format(np.sum(ct) + cur_on[-1]))
 
     # Calculate off- relaxation.
-    str += ('\nOFF-RELAXATION for ideal step:\n' +
+    str_out += ('\nOFF-RELAXATION for ideal step:\n' +
         'Time course for current\n' +
         '\nComp\tEigen\t\tTau (ms)\n')
     for i in range(mec.k-1):
-        str += ('{0:d}\t'.format(i+1) +
+        str_out += ('{0:d}\t'.format(i+1) +
             '{0:.5g}\t\t'.format(eigs0[i]) +
             '{0:.5g}\t\n'.format(-1000 / eigs0[i]))
 
@@ -439,18 +467,18 @@ def printout(mec, cmax, width, eff='c'):
     max_ampl_off = np.max(np.abs(ampl_off))
     rel_ampl_off = ampl_off / max_ampl_off
     area_off = np.zeros((mec.k-1))
-    str += ('\nAmpl.(t=0,pA)\tRel.ampl.\t\tArea(pC)\n')
+    str_out += ('\nAmpl.(t=0,pA)\tRel.ampl.\t\tArea(pC)\n')
     for i in range(mec.k-1):
         area_off[i] = -1000 * cur_off[i] / eigs0[i]
-        str += ('{0:.5g}\t\t'.format(cur_off[i]) +
+        str_out += ('{0:.5g}\t\t'.format(cur_off[i]) +
             '{0:.5g}\t\t'.format(rel_ampl_off[i]) +
             '{0:.5g}\t\n'.format(area_off[i]))
             
-    str += ('\nWeighted Off Tau (ms) = {0:.5g}\n'.format(tau_off_weighted * 1000))
-    str += ('\nTotal current at t=0 (pA) = {0:.5g}\n'.
+    str_out += ('\nWeighted Off Tau (ms) = {0:.5g}\n'.format(tau_off_weighted * 1000))
+    str_out += ('\nTotal current at t=0 (pA) = {0:.5g}\n'.
         format(np.sum(cur_off)))
-    str += ('Total current at equilibrium (pA) = {0:.5g}\n'.
+    str_out += ('Total current at equilibrium (pA) = {0:.5g}\n'.
         format(cur_off[-1]))
-    str += ('Total area (pC) = {0:.5g}\n'.format(np.sum(area_off)))
+    str_out += ('Total area (pC) = {0:.5g}\n'.format(np.sum(area_off)))
  
-    return str
+    return str_out
