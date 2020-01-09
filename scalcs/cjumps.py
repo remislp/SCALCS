@@ -3,6 +3,9 @@
 __author__="remis"
 __date__ ="$08-Nov-2011 21:43:14$"
 
+DEPRECATION_MESSAGE_1 = "'{0}' function is deprecated and will be removed in the future. Use '{1}' function instead."
+
+import warnings
 import numpy as np
 import scipy.integrate as scpi
 from scipy.special import erf
@@ -89,6 +92,81 @@ def coefficient_calc(k, A, p):
 
 ##### Calculate macroscopic current response #####
 
+##### new #####
+
+def concentration_profile(step, reclen, cprofile, cargs):
+    """
+    Calculate concentration profile.
+
+    Parameters
+    ----------
+    reclen : float
+        Trace length.
+    step : float
+        Sampling time interval.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    """
+    t = np.arange(0, reclen, step)
+    return t, cprofile(t, cargs)
+
+def calculate_macro_response(mec, tstep, reclen, cfunc, cargs, method='direct', abserr=1.0e-8, relerr=1.0e-6):
+    """
+    Calculate concentration profile.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    step : float
+        Sampling time interval.
+    reclen : float
+        Trace length.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    P : ndarray
+        All state occupancies.
+    """
+    
+    t, conc = concentration_profile(tstep, reclen, cfunc, cargs)
+    mec.set_eff('c', conc[0])
+    
+    if method == 'direct':
+        pi = qml.pinf(mec.Q)
+        Pt = np.array([pi.copy()])
+        for c in conc[1:]:
+            mec.set_eff('c', c)
+            eigenvals, A = qml.eigs_sorted(mec.Q)
+            w = coefficient_calc(mec.k, A, pi)
+            pi = P_t(tstep, eigenvals, w)
+            Pt = np.append(Pt, [pi.copy()], axis=0)
+            
+    if method == 'integrate':
+        Pt = scpi.odeint(dPdt, qml.pinf(mec.Q), t, args=(mec, cfunc, cargs),
+            atol=abserr,rtol=relerr)
+    
+    return t, conc, Pt.transpose()
+
+##### old: keep for backward compatibility until fully deprecated 
+
 def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
     """
     Calculate response to a concentration pulse by integration.
@@ -119,7 +197,8 @@ def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
     Popen : ndarray
         Open probability.
     """
-
+    
+    warnings.warn('cjumps: ' + DEPRECATION_MESSAGE_1.format('solve_jump', 'calculate_macro_response'), DeprecationWarning, stacklevel=2)
     t = np.arange(0, reclen, step)
     mec.set_eff('c', cargs[1])
     P0 = qml.pinf(mec.Q)
@@ -158,7 +237,8 @@ def calc_jump (mec, reclen, step, cfunc, cargs):
     Popen : ndarray
         Open probability.
     """
-
+    
+    warnings.warn('cjumps: ' + DEPRECATION_MESSAGE_1.format('calc_jump', 'calculate_macro_response'), DeprecationWarning, stacklevel=2)
     t = np.arange(0, reclen, step)
     c =  cfunc(t, cargs)
     mec.set_eff('c', cargs[1])
@@ -175,7 +255,6 @@ def calc_jump (mec, reclen, step, cfunc, cargs):
     P = Pt.transpose()
     Popen = np.sum(P[: mec.kA], axis=0)
     return t, c, Popen, P
-
 
 
 ##### Concentration pulse profiles #####
