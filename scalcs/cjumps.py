@@ -370,6 +370,52 @@ def pulse_square(t, pars):
 
     return conc + cb
 
+def pulse_square_with_prepulse(t, pars):
+    """
+    Generate square pulse with prepulse.
+
+    Parameters
+    ----------
+    t : ndarray or float
+        Time samples.
+    cmax : float
+        Peak concentration.
+    cb : float
+        background concentration.
+    base : float
+        Time before prepulse starts.
+    prepulse : float
+        Length of conditioning prepulse.
+    pulse : float
+        Square pulse width.
+    interpulse : float
+        Time between two square pulses.
+
+    Returns
+    -------
+    c : ndarray
+        Concentration profile.
+    """
+
+    cb, cpre, cmax, base, prepulse, pulse = pars
+    if np.isscalar(t):
+        if (t > base) and (t <= (base + prepulse)):
+            conc = cpre
+        elif (t > (base + prepulse)) and (t <= (base + prepulse + pulse)):
+            conc = cmax
+        else:
+            conc = 0.0
+    else:
+        c1 = t[np.where(t <= base)] * 0.0
+        t2 = t[np.where((t > base) & (t <= (base + prepulse)))]
+        c2 = np.append(c1, cpre * np.ones(t2.shape))
+        t3 = t[np.where((t > (base + prepulse)) & (t <= (base + prepulse + pulse)))]
+        c3 = np.append(c2, cmax * np.ones(t3.shape))
+        t4 = t[np.where(t > (base + prepulse + pulse))]
+        conc = np.append(c3, t4 * 0.0)
+
+    return conc + cb
+
 def pulse_square_paired(t, pars):
 #def pulse_square_paired(t, (cmax, cb, prepulse, pulse, inter)):
     """
