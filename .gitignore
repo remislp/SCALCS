@@ -27,6 +27,8 @@ syntax: glob
 __pycache__/
 **/__pycache__
 
+**/.ipynb_checkpoints
+
 SCALCS.egg-info/
 .DS_Store
 .AppleDouble
