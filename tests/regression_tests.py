@@ -248,3 +248,7 @@ class TestDC_PyPs(unittest.TestCase):
         # POPEN CURVE CALCULATIONS
         c, pe, pi = scpl.Popen(self.mec, self.tres)
         self.assertTrue(pi[-1]>0.967 and pi[-1]<0.969)
+
+if __name__ == '__main__':
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestDC_PyPs)
+    unittest.TextTestRunner(verbosity=2).run(suite)
