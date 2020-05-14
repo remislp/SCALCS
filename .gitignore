@@ -24,8 +24,8 @@ syntax: glob
 *.xls
 *.bat
 
-__pycache__/
-**/__pycache__
+#__pycache__/
+#**/__pycache__
 
 SCALCS.egg-info/
 .DS_Store
