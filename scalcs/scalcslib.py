@@ -191,6 +191,39 @@ def ideal_mean_latency_given_start_state(mec, state):
     mean = np.dot(np.dot(p, invQ), u)[0]
     return mean
 
+def ideal_popen(mec):
+    """
+    Calculate ideal equilibrium open probability, Popen.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    p = qml.pinf(mec.QGG)
+    return np.sum(p[ : mec.kA]) / np.sum(p)
+
+def exact_popen(mec, tres):
+    """
+    Calculate equilibrium open probability, Popen, corrected for missed events.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+    tres : float
+        Time resolution.
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    hmopen, hmshut = exact_mean_open_shut_time(mec, tres)
+    return (hmopen / (hmopen + hmshut))
 
 def asymptotic_pdf(t, tres, tau, area):
     """
