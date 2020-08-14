@@ -171,7 +171,7 @@ class Rate(object):
     def _set_effectors(self, effectors):
         try:
             # test whether effector is a sequence:
-#            it = iter(effectors)
+            it = iter(effectors)
             self._effectors = effectors
         except TypeError:
             # if not, convert to single-itemed list:
@@ -183,7 +183,7 @@ class Rate(object):
     def _set_rateconstants(self, rateconstants):
         try:
             # test whether rateconstants is a sequence:
-#            it = iter(rateconstants)
+            it = iter(rateconstants)
             # test whether this is a numpy array:
             if isinstance(rateconstants, np.ndarray):
                 self._rateconstants = rateconstants
