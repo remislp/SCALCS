@@ -45,7 +45,7 @@ from numpy import linalg as nplin
 
 from scalcs import qmatlib as qml
 from scalcs import pdfs
-#import optimize
+
 
 def ideal_dwell_time_pdf(t, QAA, phiA):
     """
@@ -1407,6 +1407,42 @@ def sortShell2(vals, simp):
          gap //= 2
     return vals, simp
 
+def tcrits(mec):
+    eigs, w = ideal_dwell_time_pdf_components(mec.QII, qml.phiF(mec))
+    #sorted_taus_areas = np.sort(np.array([1 / eigs, w /eigs]))
+    #taus, areas = sorted_taus_areas[0], sorted_taus_areas[1]
+    taus, areas = sortShell2(1 / eigs, w /eigs)
+
+    comps = taus.shape[0]-1
+    tcrits = np.empty((3, comps))
+    for i in range(comps):
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_DC,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+        except:
+            tcrit = None
+        tcrits[0, i] = tcrit
+        
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_CN,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+        except:
+            tcrit = None
+        tcrits[1, i] = tcrit
+        
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_Jackson,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+            print_string += pdfs.expPDF_misclassified_printout(tcrit, enf, ens, pf, ps)
+        except:
+            tcrit = None
+        tcrits[2, i] = tcrit
+
+    return tcrits
+
 def printout_tcrit(mec):
     """
     Output calculations based on division into bursts by critical time (tcrit).
@@ -1415,20 +1451,20 @@ def printout_tcrit(mec):
     ----------
     mec : dcpyps.Mechanism
         The mechanism to be analysed.
-    output : output device
-        Default device: sys.stdout
     """
 
     print_string = ('\n\n*******************************************\n' +
         'CALCULATIONS BASED ON DIVISION INTO BURSTS BY' +
         ' tcrit- CRITICAL TIME.\n')
+
     # Ideal shut time pdf
-    eigs, w = ideal_dwell_time_pdf_components(mec.QII, qml.phiF(mec))
     print_string += ('\nIDEAL SHUT TIME DISTRIBUTION\n')
+    eigs, w = ideal_dwell_time_pdf_components(mec.QII, qml.phiF(mec))
     print_string += pdfs.expPDF_printout(eigs, w)
-    taus = 1 / eigs
-    areas = w /eigs
-    taus, areas = sortShell2(taus, areas)
+
+    sorted_taus_areas = np.sort(np.array([1 / eigs, w /eigs]))
+    taus, areas = sorted_taus_areas[0], sorted_taus_areas[1]
+    #taus, areas = sortShell2(taus, areas)
 
     comps = taus.shape[0]-1
     tcrits = np.empty((3, comps))

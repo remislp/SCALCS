@@ -24,6 +24,15 @@ class TestDC_PyPs(unittest.TestCase):
         self.tres = 0.0001 # 100 microsec
         self.tcrit = 0.004
 
+    def test_tcrits(self):
+        tcrits = scl.tcrits(self.mec)
+        print(tcrits)
+        self.assertAlmostEqual(tcrits[0, 0], 0.00023317038592313765, 16)
+        self.assertAlmostEqual(tcrits[0, 1], 0.0015961890924042531, 16)
+        self.assertAlmostEqual(tcrits[1, 0], 0.0002783170202703177, 16)
+        self.assertAlmostEqual(tcrits[1, 1], 0.001991173682237138, 16)
+
+
     def test_burst(self):
 
         # # # Burst initial vector.
