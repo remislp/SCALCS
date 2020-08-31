@@ -482,7 +482,6 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
     """
 
     #TODO: implement constrain reading and setting
-    #TODO: check microscopic reversibility 
     df = pd.read_excel(filename, sheet_name=sheet, index_col=None, header=None)
 
     mectitle = df.loc[df.iloc[:, 0] == "mectitle"].iloc[0][1]
@@ -513,10 +512,11 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
     fixed, mr, constrained = False, False, False
     for index, row in df_rates.iterrows():
         if verbose: print(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
-        if row[5] is 'c': bound = 'c'
-        if row[8] is 'mr': 
+        if row[5] == 'c': bound = 'c'
+        if row[8] == 'mr': 
+            if verbose: print("Rate", row[1], "is MR constrained")
             mr = True
-            cycles[row[9]-1].mrconstr = [row[2], row[3]]
+            cycles[int(row[9])-1].mrconstr = [row[2], row[3]]
         if row[8] is 'fixed': fixed = True
 #        if row[8] is 'multiply':
 #            cfunc = mechanism.multiply
