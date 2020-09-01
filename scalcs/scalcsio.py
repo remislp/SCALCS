@@ -511,6 +511,7 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
     bound, cfunc, cargs = None, None, None
     fixed, mr, constrained = False, False, False
     for index, row in df_rates.iterrows():
+        bound, mr, fixed = None, False, False
         if verbose: print(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
         if row[5] == 'c': bound = 'c'
         if row[8] == 'mr': 
