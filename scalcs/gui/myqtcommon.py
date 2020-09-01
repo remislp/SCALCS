@@ -343,16 +343,4 @@ class ExcelSheetDlg(QDialog):
         return self.sheet
 
 
-def ok_cancel_button(parent):
-    buttonBox = QDialogButtonBox(QDialogButtonBox.Ok|QDialogButtonBox.Cancel)
-    buttonBox.button(QDialogButtonBox.Ok).setDefault(True)
-    buttonBox.accepted.connect(parent.accept)
-    buttonBox.rejected.connect(parent.reject)
-    # Following is for pyqt4
-    #self.connect(buttonBox, SIGNAL("accepted()"),
-    #     self, SLOT("accept()"))
-    #self.connect(buttonBox, SIGNAL("rejected()"),
-    #     self, SLOT("reject()"))
-    return buttonBox
-
 
