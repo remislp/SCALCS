@@ -1,5 +1,6 @@
 import os
 import yaml
+import xlrd
 
 try:
     from PyQt5.QtWidgets import *
@@ -32,6 +33,8 @@ class MechMenu(QMenu):
             "&Load from DCprogs MEC File...", self.onLoadMecFile)
         loadFromPrtFileAction = myqtcommon.createAction(parent, 
             "&Load from DCprogs PRT File...", self.onLoadPrtFile)
+        loadFromExcelFileAction = myqtcommon.createAction(parent, 
+            "&Load from Excel File...", self.onLoadExcelFile)
         loadFromModFileAction = myqtcommon.createAction(parent, 
             "&Load from ChannelLab MOD File...", self.onLoadModFile)
         modifyMecAction = myqtcommon.createAction(parent, 
@@ -43,7 +46,7 @@ class MechMenu(QMenu):
             
         self.addActions([loadDemo, #1Action, loadDemo2Action,
             #loadFromYAMLFileAction,
-            loadFromMecFileAction, loadFromPrtFileAction, loadFromModFileAction,
+            loadFromMecFileAction, loadFromPrtFileAction, loadFromExcelFileAction, loadFromModFileAction,
             modifyMecAction, modifyStatesAction, saveMecAction])
             
     def onLoadDemo(self):
@@ -126,6 +129,25 @@ class MechMenu(QMenu):
         self.parent.mec = scalcsio.mec_load_from_prt(filename)
         self.modifyMec(self.parent.mec, self.parent.log)
         self.parent.log.write("Loaded mec and rates from PRT file: " + filename)
+        self.parent.mec.printout(self.parent.log)
+
+    def onLoadExcelFile(self):
+        self.parent.mecfn, filter = QFileDialog.getOpenFileName(self,
+            "Open Excel File...", self.parent.path, "Excel Files (*.xls *.xlsx)")
+        self.parent.path = os.path.split(str(self.parent.mecfn))[0]
+        self.parent.log.write("\nFile to read: " + 
+            os.path.split(str(self.parent.mecfn))[1])
+
+        xlssheet = None
+        book = xlrd.open_workbook(self.parent.mecfn)
+        sheets = book.sheet_names()
+        dialog = myqtcommon.ExcelSheetDlg(sheets, self)
+        if dialog.exec_():
+            xlssheet = dialog.returnSheet()
+
+        self.parent.mec = scalcsio.load_from_excel_sheet(self.parent.mecfn, sheet=xlssheet, verbose=False)
+        self.modifyMec(self.parent.mec, self.parent.log)
+        self.parent.log.write("Loaded mec and rates from PRT file: " + self.parent.mecfn)
         self.parent.mec.printout(self.parent.log)
 
     def onLoadModFile(self):
