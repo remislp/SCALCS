@@ -419,6 +419,8 @@ class CJumpParDlg(QDialog):
         """
         Return parameter dictionary on exit.
         """
+        self.on_par_changed()
+    
         if self.profile == 'rcj':
             cargs = (self.cmax, self.cb, self.centre, self.width,
                 self.rise, self.decay)
