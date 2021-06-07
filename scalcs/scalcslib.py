@@ -932,7 +932,7 @@ def corr_decay_amplitude_A(phiA, QAA, XAA, kA):
     row = np.dot(phiA, invQAA)
     col = np.dot(invQAA, uA)
 
-    ncA = np.rank(XAA) - 1
+    ncA = np.ndim(XAA) - 1
     w = np.zeros((ncA))
     n = 0
     for i in range(kA):
@@ -1524,10 +1524,10 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
     kA, kI = mec.kA, mec.kI
     print_string += ('kA, kF = {0:d}, {1:d}\n'.format(kA, kI))
     GAF, GFA = qml.iGs(mec.Q, kA, kI)
-    rGAF, rGFA = np.rank(GAF), np.rank(GFA)
+    rGAF, rGFA = np.ndim(GAF), np.ndim(GFA)
     print_string += ('Ranks of GAF, GFA = {0:d}, {1:d}\n'.format(rGAF, rGFA))
     XFF = np.dot(GFA, GAF)
-    rXFF = np.rank(XFF)
+    rXFF = np.ndim(XFF)
     print_string += ('Rank of GFA * GAF = {0:d}\n'.format(rXFF))
     #ncF = rXFF - 1
     eigXFF, AXFF = qml.eigs(XFF)
@@ -1537,7 +1537,7 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
         print_string1 += '\t{0:.5g}'.format(eigXFF[i])
     print_string += print_string1 + '\n'
     XAA = np.dot(GAF, GFA)
-    rXAA = np.rank(XAA)
+    rXAA = np.ndim(XAA)
     print_string += ('Rank of GAF * GFA = {0:d}\n'.format(rXAA))
     #ncA = rXAA - 1
     eigXAA, AXAA = qml.eigs(XAA)
