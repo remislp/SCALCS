@@ -31,14 +31,14 @@ class JumpMenu(QMenu):
         plotJumpOccupanciesAction = myqtcommon.createAction(self, 
             "&Concentration jump: occupancies",
             self.onPlotCJumpOccupancies)
-        plotJumpOnOffTauConc = myqtcommon.createAction(self, 
-            "&Concentration jump: weighted on/off tau versus concentration",
-            self.onPlotCJumpRiseVConc)
+        #plotJumpOnOffTauConc = myqtcommon.createAction(self, 
+        #    "&Concentration jump: weighted on/off tau versus concentration",
+        #    self.onPlotCJumpRiseVConc)
 #        plotJump2PopenAction = self.createAction(self, 
 #            "&Instant rise and exponential decay concentration jump: Popen", self.onPlotCJump2Popen)
             
         self.addActions([plotJumpPopenAction, plotJumpOccupanciesAction,
-            plotJumpOnOffTauConc
+#            plotJumpOnOffTauConc
 #            , plotJump2PopenAction            
             ])
             
@@ -85,8 +85,8 @@ class JumpMenu(QMenu):
                 .format(self.cjargs[4] * 1000))
         self.parent.txtPltBox.append("---\n")
 
-        t, c, Popen, P  = cjumps.solve_jump(self.parent.mec, self.cjlen, self.cjstep,
-            self.cjfunc, self.cjargs)
+        t, c, P  = cjumps.calculate_macro_response(self.parent.mec, self.cjstep, self.cjlen, self.cjfunc, self.cjargs, method='integrate')
+        Popen = np.sum(P[: self.parent.mec.kA], axis=0)
         maxP = max(Popen)
         maxC = max(c)
         c1 = (c / maxC) * 0.2 * maxP + 1.02 * maxP
@@ -151,8 +151,8 @@ class JumpMenu(QMenu):
                 .format(self.cjargs[3] * 1000))
         self.parent.txtPltBox.append("---\n")
 
-        t, c, Popen, P = cjumps.solve_jump(self.parent.mec, self.cjlen, self.cjstep,
-            self.cjfunc, self.cjargs)
+        t, c, P  = cjumps.calculate_macro_response(self.parent.mec, self.cjstep, self.cjlen, self.cjfunc, self.cjargs, method='integrate')
+        Popen = np.sum(P[: self.parent.mec.kA], axis=0)
         maxP = max(Popen)
         maxC = max(c)
         c1 = (c / maxC) * 0.2 * maxP + 1.02 * maxP

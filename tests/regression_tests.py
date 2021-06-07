@@ -24,6 +24,15 @@ class TestDC_PyPs(unittest.TestCase):
         self.tres = 0.0001 # 100 microsec
         self.tcrit = 0.004
 
+    def test_tcrits(self):
+        tcrits = scl.tcrits(self.mec)
+        print(tcrits)
+        self.assertAlmostEqual(tcrits[0, 0], 0.00023317038592313765, 16)
+        self.assertAlmostEqual(tcrits[0, 1], 0.0015961890924042531, 16)
+        self.assertAlmostEqual(tcrits[1, 0], 0.0002783170202703177, 16)
+        self.assertAlmostEqual(tcrits[1, 1], 0.001991173682237138, 16)
+
+
     def test_burst(self):
 
         # # # Burst initial vector.
@@ -248,3 +257,7 @@ class TestDC_PyPs(unittest.TestCase):
         # POPEN CURVE CALCULATIONS
         c, pe, pi = scpl.Popen(self.mec, self.tres)
         self.assertTrue(pi[-1]>0.967 and pi[-1]<0.969)
+
+if __name__ == '__main__':
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestDC_PyPs)
+    unittest.TextTestRunner(verbosity=2).run(suite)

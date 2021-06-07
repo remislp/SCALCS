@@ -1,5 +1,6 @@
 import os
 import yaml
+import xlrd
 
 try:
     from PyQt5.QtWidgets import *
@@ -28,12 +29,17 @@ class MechMenu(QMenu):
 
         #loadFromYAMLFileAction = myqtcommon.createAction(parent,
         #    "&Load from YAML File...", self.onLoadYAMLmec)
-        loadFromMecFileAction = myqtcommon.createAction(parent,
-            "&Load from DCprogs MEC File...", self.onLoadMecFile)
-        loadFromPrtFileAction = myqtcommon.createAction(parent, 
-            "&Load from DCprogs PRT File...", self.onLoadPrtFile)
-        loadFromModFileAction = myqtcommon.createAction(parent, 
-            "&Load from ChannelLab MOD File...", self.onLoadModFile)
+        loadFromFileAction = myqtcommon.createAction(parent,
+            "&Load mechanism from file...", self.onLoadFile)
+
+        #loadFromMecFileAction = myqtcommon.createAction(parent,
+        #    "&Load from DCprogs MEC File...", self.onLoadMecFile)
+        #loadFromPrtFileAction = myqtcommon.createAction(parent, 
+        #    "&Load from DCprogs PRT File...", self.onLoadPrtFile)
+        #loadFromExcelFileAction = myqtcommon.createAction(parent, 
+        #    "&Load from Excel File...", self.onLoadExcelFile)
+        #loadFromModFileAction = myqtcommon.createAction(parent, 
+        #    "&Load from ChannelLab MOD File...", self.onLoadModFile)
         modifyMecAction = myqtcommon.createAction(parent, 
             "&Modify loaded mec rates", self.onModifyMec)
         modifyStatesAction = myqtcommon.createAction(parent, 
@@ -43,7 +49,8 @@ class MechMenu(QMenu):
             
         self.addActions([loadDemo, #1Action, loadDemo2Action,
             #loadFromYAMLFileAction,
-            loadFromMecFileAction, loadFromPrtFileAction, loadFromModFileAction,
+            loadFromFileAction,
+            #loadFromMecFileAction, loadFromPrtFileAction, loadFromExcelFileAction, loadFromModFileAction,
             modifyMecAction, modifyStatesAction, saveMecAction])
             
     def onLoadDemo(self):
@@ -52,26 +59,29 @@ class MechMenu(QMenu):
         'CH82'- C&H82 numerical example, 'dCK'- delCastillo-Katz mechanism,
         
         """
-        dialog = DemoMecDlg()
-        if dialog.exec_():
-            demo = dialog.return_par() 
-        if demo == 'CH82':
-            mec = samples.CH82()
-        elif demo == 'dCK':
-            mec = samples.CCO()
-        elif demo == 'dCK+B':
-            mec = samples.CCOB()
-        elif demo == 'dCK+D':
-            mec = samples.CCOD()
-        elif demo == 'CO':
-            mec = samples.CO()
-        elif demo == 'FCC':
-            mec = samples.fully_connected_cycle()
-        self.parent.mec = mec
-        mec = self.modifyMec(mec, self.parent.log)
-        mec.printout(self.parent.log)
-        return mec
-        
+        try:
+            dialog = DemoMecDlg()
+            if dialog.exec_():
+                demo = dialog.return_par() 
+            if demo == 'CH82':
+                mec = samples.CH82()
+            elif demo == 'dCK':
+                mec = samples.CCO()
+            elif demo == 'dCK+B':
+                mec = samples.CCOB()
+            elif demo == 'dCK+D':
+                mec = samples.CCOD()
+            elif demo == 'CO':
+                mec = samples.CO()
+            elif demo == 'FCC':
+                mec = samples.fully_connected_cycle()
+            self.parent.mec = mec
+            mec = self.modifyMec(mec, self.parent.log)
+            mec.printout(self.parent.log)
+            return mec
+        except:
+            pass
+
     def onLoadDemo_CH82(self):
         """
         Load demo mechanism (C&H82 numerical example).
@@ -86,17 +96,41 @@ class MechMenu(QMenu):
         """
         self.parent.mec = self.load_demo_mec('dCK', self.parent.log)
         self.parent.log.write("\nLoaded del Castillo-Katz mechanism.\n")
-        
-    def onLoadMecFile(self):
-        """
-        Load a mechanism and rates from DC's mec file.
-        """
+
+    def __get_filename(self, wildcard):
         self.parent.mecfn, filter = QFileDialog.getOpenFileName(self,
-            "Open Mec File...", self.parent.path, "DC Mec Files (*.mec *.MEC)")
+            "Open File...", self.parent.path, wildcard)
         self.parent.path = os.path.split(str(self.parent.mecfn))[0]
         self.parent.log.write("\nFile to read: " + 
             os.path.split(str(self.parent.mecfn))[1])
 
+    def onLoadFile(self):
+        """
+        Load demo mechanisms from dcpyps/samples/samples.py.
+        'CH82'- C&H82 numerical example, 'dCK'- delCastillo-Katz mechanism,
+        
+        """
+        try:
+            dialog = MecFileTypeDlg()
+            if dialog.exec_():
+                mftype = dialog.return_par() 
+            if mftype == 'mec':
+                self.onLoadMecFile("DC Mec Files (*.mec *.MEC)")
+            elif mftype == 'prt':
+                self.onLoadPrtFile("DC Mec Files (*.prt *.PRT *.txt *.TXT)")
+            elif mftype == 'xls':
+                self.onLoadExcelFile("Excel Files (*.xls *.xlsx)")
+            elif mftype == 'mod':
+                self.onLoadModFile("ChannelLab MOD Files (*.mod *.MOD)")
+        except:
+            pass
+
+
+    def onLoadMecFile(self, wildcard):
+        """
+        Load a mechanism and rates from DC's mec file.
+        """
+        self.__get_filename(wildcard)
         version, meclist, max_mecnum = scalcsio.mec_get_list(self.parent.mecfn)
         self.parent.log.write("Mec file version: %d; contains %d mechanisms."
             %(version, max_mecnum))
@@ -106,41 +140,42 @@ class MechMenu(QMenu):
             nrate = dialog.returnRates()
 
         self.parent.mec = scalcsio.mec_load(self.parent.mecfn, meclist[nrate][0])
-
         self.modifyMec(self.parent.mec, self.parent.log)
-
         self.parent.log.write("Loaded mec: " + meclist[nrate][2])
         self.parent.log.write("Loaded rates: " + meclist[nrate][3] + "\n")
         self.parent.mec.printout(self.parent.log)
         
-    def onLoadPrtFile(self):
+    def onLoadPrtFile(self, wildcard):
         """
         Load a mechanism and rates from DC's HJCFIT.PRT file.
         """
-        filename = QFileDialog.getOpenFileName(self,
-            "Open Mec File...", self.parent.path, 
-            "DC Mec Files (*.prt *.PRT *.txt *.TXT)")
-        self.parent.path = os.path.split(str(filename))[0]
-        self.parent.log.write("\nFile to read: " + os.path.split(str(filename))[1])
-
-        self.parent.mec = scalcsio.mec_load_from_prt(filename)
+        self.__get_filename(wildcard)
+        self.parent.mec = scalcsio.mec_load_from_prt(self.parent.mecfn)
         self.modifyMec(self.parent.mec, self.parent.log)
-        self.parent.log.write("Loaded mec and rates from PRT file: " + filename)
+        self.parent.log.write("Loaded mec and rates from PRT file: " + self.parent.mecfn)
         self.parent.mec.printout(self.parent.log)
 
-    def onLoadModFile(self):
+    def onLoadExcelFile(self, wildcard):
+        self.__get_filename(wildcard)
+        xlssheet = None
+        book = xlrd.open_workbook(self.parent.mecfn)
+        sheets = book.sheet_names()
+        dialog = myqtcommon.ExcelSheetDlg(sheets, self)
+        if dialog.exec_():
+            xlssheet = dialog.returnSheet()
+
+        self.parent.mec = scalcsio.load_from_excel_sheet(self.parent.mecfn, sheet=xlssheet, verbose=False)
+        self.modifyMec(self.parent.mec, self.parent.log)
+        self.parent.log.write("Loaded mec and rates from PRT file: " + self.parent.mecfn)
+        self.parent.mec.printout(self.parent.log)
+
+    def onLoadModFile(self, wildcard):
         """
         Load a mechanism and rates from Channel Lab .mod file.
         Called from menu Load|From Channel Lab .MOD File...
         """
-        filename, filter = QFileDialog.getOpenFileName(self,
-            "Open MOD File...", self.parent.path,
-            "Channel Lab MOD Files (*.mod *.MOD)")
-        self.parent.path = os.path.split(str(filename))[0]
-        self.parent.log.write("\nFile to read: " + 
-            os.path.split(str(filename))[1])
-
-        self.parent.mec, title = scalcsio.mod_load(filename)
+        self.__get_filename(wildcard)
+        self.parent.mec, title = scalcsio.mod_load(self.parent.mecfn)
         self.modifyMec(self.parent.mec, self.parent.log)
         self.parent.log.write("\n" + title + "\n")
         self.parent.mec.printout(self.parent.log)
@@ -632,4 +667,40 @@ class DemoMecDlg(QDialog):
             mec = 'dCK+D'
         elif self.FCC.isChecked():
             mec = 'FCC'
+        return mec
+
+
+class MecFileTypeDlg(QDialog):
+    """
+    """
+    def __init__(self, parent=None):
+        super(MecFileTypeDlg, self).__init__(parent)
+
+        layoutMain = QVBoxLayout()
+        layoutMain.addWidget(QLabel("Read mechanisms from ..."))
+
+        self.mec = QRadioButton("DC mec file")
+        self.mec.setChecked(True)
+        self.prt = QRadioButton("&DC prt file")
+        self.xls = QRadioButton("&Excel file")
+        self.mod = QRadioButton("&ChannelLab mod file")
+        
+        layoutMain.addWidget(self.mec)
+        layoutMain.addWidget(self.prt)
+        layoutMain.addWidget(self.xls)
+        layoutMain.addWidget(self.mod)
+
+        layoutMain.addWidget(myqtcommon.ok_cancel_button(self))
+        self.setLayout(layoutMain)
+        self.setWindowTitle("Open mecanism file...")
+        
+    def return_par(self):
+        if self.mec.isChecked():
+            mec = 'mec'
+        elif self.prt.isChecked():
+            mec = 'prt'
+        elif self.xls.isChecked():
+            mec = 'xls'
+        elif self.mod.isChecked():
+            mec = 'mod'
         return mec

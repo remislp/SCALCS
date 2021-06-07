@@ -1,0 +1,912 @@
+!!python/object:dcpyps.mechanism.Mechanism
+Cycles:
+- !!python/object:dcpyps.mechanism.Cycle
+  mrconstr: &id001 []
+  states: [A2F, AF, AR, A2R]
+- !!python/object:dcpyps.mechanism.Cycle
+  mrconstr: *id001
+  states: [A3F, A2F, A2R, A3R]
+Q: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - &id002 !!python/name:numpy.ndarray ''
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [10, 10]
+  - &id003 !!python/object/apply:numpy.dtype
+    args: [f8, 0, 1]
+    state: !!python/tuple [3, <, null, null, null, -1, -1, 0]
+  - false
+  - !!binary |
+    AAAAAACQqsAAAAAAAAAAAAAAAAAAAAAAAAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaKDAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAaKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAFi7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAFi7QAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAABosEAAAAAAAAAAAAAAAAAAAAAAAAAAsCTiscEAAAAAo+GxQQAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUtxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWNtAAAAAAAAA
+    AAAAAAAAAMCiQAAAACAd46HBAAAAAKPhoUEAAAAAAAAAAAAAAAAAlNFAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAgH7/QAAAAAAAAAAAAAAAAAAgrEAAAAAA4EsAwQAAAAAAIIxA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAadRAAAAAAABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkLpAAAAAAAAAAAAAAAAAYAEiQQAAAAAwOyLBAAAA
+    AADAgkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgGZAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAGABMkEAAAAAQAMywQAAAAAAwHJAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAjtBAAAAABAC
+    O8E=
+QAA: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [3, 3]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGigwAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAWLvA
+QAB: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [3, 6]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAGigQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAWLtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QAC: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [3, 1]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QAF: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [3, 7]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAaKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAFi7QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QAI: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [3, 7]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAaKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAFi7QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QBA: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [6, 3]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAABosEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFjbQAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAACAfv9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QBB: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [6, 6]
+  - *id003
+  - false
+  - !!binary |
+    AAAAsCTiscEAAAAAo+GxQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUtxAAAAAAADAokAA
+    AAAgHeOhwQAAAACj4aFBAAAAAAAAAAAAAAAAAJTRQAAAAAAAAAAAAAAAAAAAAAAAAAAAACCsQAAA
+    AADgSwDBAAAAAAAgjEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAadRAAAAA
+    AABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAJC6QAAAAAAAAAAAAAAAAGABIkEAAAAA
+    MDsiwQAAAAAAwIJAAAAAAACAZkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAEyQQAAAABA
+    AzLB
+QBC: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [6, 1]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwHJA
+QCA: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [1, 3]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QCB: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [1, 6]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAjtB
+QEE: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [9, 9]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqsAAAAAAAAAAAAAAAAAAAAAAAAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGigwAAAAAAAAAAAAAAAAAAAAAAAAAAAAGigQAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWLvAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAWLtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABosEAAAAAA
+    AAAAAAAAAAAAAAAAAAAAsCTiscEAAAAAo+GxQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    UtxAAAAAAAAAAAAAAAAAAFjbQAAAAAAAAAAAAAAAAADAokAAAAAgHeOhwQAAAACj4aFBAAAAAAAA
+    AAAAAAAAAJTRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAfv9AAAAAAAAAAAAAAAAAACCs
+    QAAAAADgSwDBAAAAAAAgjEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAadRAAAAAAABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJC6QAAAAAAAAAAAAAAAAGABIkEAAAAAMDsiwQAA
+    AAAAwIJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAZkAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAYAEyQQAAAABAAzLB
+QFA: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [7, 3]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAABosEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFjbQAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAACAfv9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QFF: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [7, 7]
+  - *id003
+  - false
+  - !!binary |
+    AAAAsCTiscEAAAAAo+GxQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUtxAAAAAAAAAAAAA
+    AAAAAMCiQAAAACAd46HBAAAAAKPhoUEAAAAAAAAAAAAAAAAAlNFAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAgrEAAAAAA4EsAwQAAAAAAIIxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAadRAAAAAAABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAkLpAAAAAAAAAAAAAAAAAYAEiQQAAAAAwOyLBAAAAAADAgkAAAAAAAAAAAAAAAAAA
+    gGZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGABMkEAAAAAQAMywQAAAAAAwHJAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAjtBAAAAABACO8E=
+QGG: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [10, 10]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAACQqsAAAAAAAAAAAAAAAAAAAAAAAAAAAACQqkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaKDAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAaKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAFi7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAFi7QAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAABosEAAAAAAAAAAAAAAAAAAAAAAAAAAsCTiscEAAAAAo+GxQQAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUtxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWNtAAAAAAAAA
+    AAAAAAAAAMCiQAAAACAd46HBAAAAAKPhoUEAAAAAAAAAAAAAAAAAlNFAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAgH7/QAAAAAAAAAAAAAAAAAAgrEAAAAAA4EsAwQAAAAAAIIxA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAadRAAAAAAABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAkLpAAAAAAAAAAAAAAAAAYAEiQQAAAAAwOyLBAAAA
+    AADAgkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgGZAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAGABMkEAAAAAQAMywQAAAAAAwHJAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAjtBAAAAABAC
+    O8E=
+QIA: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [7, 3]
+  - *id003
+  - false
+  - !!binary |
+    AAAAAABosEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFjbQAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAACAfv9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+QII: !!python/object/apply:numpy.core.multiarray._reconstruct
+  args:
+  - *id002
+  - !!python/tuple [0]
+  - !!binary |
+    Yg==
+  state: !!python/tuple
+  - 1
+  - !!python/tuple [7, 7]
+  - *id003
+  - false
+  - !!binary |
+    AAAAsCTiscEAAAAAo+GxQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUtxAAAAAAAAAAAAA
+    AAAAAMCiQAAAACAd46HBAAAAAKPhoUEAAAAAAAAAAAAAAAAAlNFAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAgrEAAAAAA4EsAwQAAAAAAIIxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAadRAAAAAAABK1cAAAAAAACCMQAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    AAAAAAAAAAAAkLpAAAAAAAAAAAAAAAAAYAEiQQAAAAAwOyLBAAAAAADAgkAAAAAAAAAAAAAAAAAA
+    gGZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGABMkEAAAAAQAMywQAAAAAAwHJAAAAAAAAA
+    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAjtBAAAAABACO8E=
+Rates:
+- !!python/object:dcpyps.mechanism.Rate
+  State1: &id005 !!python/object:dcpyps.mechanism.State {conductance: 6.0e-11, name: AF*,
+    'no': 0, statetype: A}
+  State2: &id004 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: AF,
+    'no': 3, statetype: B}
+  _effectors: [null]
+  _func: &id006 !!python/name:dcpyps.mechanism.identity ''
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: alpha1
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAACQqkA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id004
+  State2: *id005
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: beta1
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABosEA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: &id008 !!python/object:dcpyps.mechanism.State {conductance: 6.0e-11, name: A2F*,
+    'no': 1, statetype: A}
+  State2: &id007 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: A2F,
+    'no': 4, statetype: B}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: alpha2
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABooEA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id007
+  State2: *id008
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: beta2
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABY20A=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: &id010 !!python/object:dcpyps.mechanism.State {conductance: 6.0e-11, name: A3F*,
+    'no': 2, statetype: A}
+  State2: &id009 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: A3F,
+    'no': 5, statetype: B}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: alpha3
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABYu0A=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id009
+  State2: *id010
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: beta3
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAIB+/0A=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id009
+  State2: &id011 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: A3R,
+    'no': 6, statetype: B}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: gamma3
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAAAgjEA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id011
+  State2: *id009
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: delta3
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABp1EA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id009
+  State2: *id007
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: 3kf(-3)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - &id013 !!python/object/apply:numpy.dtype
+      args: [i4, 0, 1]
+      state: !!python/tuple [3, <, null, null, null, -1, -1, 0]
+    - false
+    - !!binary |
+      EA4AAA==
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id007
+  State2: *id009
+  _effectors: c
+  _func: &id014 !!python/name:dcpyps.mechanism.multiply ''
+  _limits:
+  - [1.0e-15, 10000000000.0]
+  _name: kf(+3)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAKPhoUE=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id007
+  State2: &id012 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: A2R,
+    'no': 7, statetype: B}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: gamma2
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAACU0UA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id012
+  State2: *id007
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: delta2
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAACQukA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id007
+  State2: *id004
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: 2kf(-2)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id013
+    - false
+    - !!binary |
+      YAkAAA==
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id004
+  State2: *id007
+  _effectors: c
+  _func: *id014
+  _limits:
+  - [1.0e-15, 10000000000.0]
+  _name: 2kf(+2)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAKPhsUE=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id004
+  State2: &id015 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: AR,
+    'no': 8, statetype: B}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: gamma1
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAABS3EA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id015
+  State2: *id004
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: delta1
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAACAZkA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id011
+  State2: *id012
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: 3k(-3)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAAAgjEA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id012
+  State2: *id011
+  _effectors: c
+  _func: *id014
+  _limits:
+  - [1.0e-15, 10000000000.0]
+  _name: k(+3)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAGABIkE=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id012
+  State2: *id015
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: 2k(-2)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAADAgkA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id015
+  State2: *id012
+  _effectors: c
+  _func: *id014
+  _limits:
+  - [1.0e-15, 10000000000.0]
+  _name: 2k(+2)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAGABMkE=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id015
+  State2: &id016 !!python/object:dcpyps.mechanism.State {conductance: 0.0, name: R,
+    'no': 9, statetype: C}
+  _effectors: [null]
+  _func: *id006
+  _limits:
+  - [1.0e-15, 10000000.0]
+  _name: k(-1)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAAADAckA=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+- !!python/object:dcpyps.mechanism.Rate
+  State1: *id016
+  State2: *id015
+  _effectors: c
+  _func: *id014
+  _limits:
+  - [1.0e-15, 10000000000.0]
+  _name: 3k(+1)
+  _rateconstants: !!python/object/apply:numpy.core.multiarray._reconstruct
+    args:
+    - *id002
+    - !!python/tuple [0]
+    - !!binary |
+      Yg==
+    state: !!python/tuple
+    - 1
+    - !!python/tuple [1]
+    - *id003
+    - false
+    - !!binary |
+      AAAAABACO0E=
+  constrain_args: null
+  constrain_func: null
+  fixed: false
+  is_constrained: false
+  mr: false
+States:
+- *id005
+- *id008
+- *id010
+- *id004
+- *id007
+- *id009
+- *id011
+- *id012
+- *id015
+- *id016
+_effdict: {c: 1.0}
+_fastKB: null
+_fastblock: false
+k: 10
+kA: 3
+kB: 6
+kC: 1
+kD: 0
+kE: 9
+kF: 7
+kG: 10
+kH: 1
+kI: 7
+mtitle: 3 site flip
+rtitle: Burzomato2004 heteromericGlyR
+verbose: false

@@ -84,6 +84,10 @@ class State(object):
         self.no = None # will be assigned in Mechanism.__init__
                        # This is now ZERO-based!
 
+    def __repr__(self):
+        return ("State: name= {0}; statetype= {1}; conductance= {2:.3f} pS".
+            format(self.name, self.statetype, self.conductance*1e12))
+
 
 class Cycle(object):
     """
@@ -91,9 +95,16 @@ class Cycle(object):
     """
 
     def __init__(self, states, mrconstr=[]):
-
         self.states = states
         self.mrconstr = mrconstr
+
+    def __repr__(self):
+        text = "Cycle formed of states   "
+        for state in self.states:
+            text += state + "   "
+        if len(self.mrconstr) == 2:
+            text += "\n\tMR constrained rate is " + self.mrconstr[0] + " to " + self.mrconstr[1]
+        return text
 
 
 class Rate(object):
@@ -245,6 +256,19 @@ class Rate(object):
         self.is_constrained = is_constrained
         self.constrain_func = func
         self.constrain_args = args
+
+    def __repr__(self):
+        text = ("Rate: name= {0}; value= {1}; from {2} to {3}; ".
+        format(self.name, str(self.unit_rate()), self.State1.name, self.State2.name))
+        if self.effectors[0] == 'c':
+            text += "concentration dependent; "
+        if self.mr:
+            text += "mr constrained; " 
+        if self.fixed:
+            text += "fixed; "
+        if self.is_constrained:
+            text += "contsrained (func {0}, args {1}); ".format(self.constrain_func, self.constrain_args)
+        return text
 
 class Graph(object):
     """

@@ -27,10 +27,67 @@ def CH82():
 
     CycleList = [mechanism.Cycle(['A2R*', 'AR*', 'AR', 'A2R'], ['A2R*', 'AR*'])]
 
-    fastblk = False
-    KBlk = 0.001
+#    fastblk = False
+#    KBlk = 0.001
 
     return  mechanism.Mechanism(RateList, CycleList, mtitle=mectitle, rtitle=ratetitle) #, fastblk, KBlk)
+
+def CH82d():
+    """ CH82 mechanism with desensitisation from diliganded open state."""
+    
+    mectitle = 'CH82d'
+    ratetitle = 'CH82 numerical example'
+
+    A2D  = mechanism.State('B', 'A2D', 0.0)
+    A2RS = mechanism.State('A', 'A2R*', 60e-12)
+    ARS  = mechanism.State('A', 'AR*', 60e-12)
+    A2R  = mechanism.State('B', 'A2R', 0.0)
+    AR   = mechanism.State('B', 'AR', 0.0)
+    R    = mechanism.State('C', 'R', 0.0)
+
+    RateList = [
+         mechanism.Rate(100, A2RS, A2D, name='don', limits=[1e-15,1e+7]),
+         mechanism.Rate(50, A2D, A2RS, name='doff', limits=[1e-15,1e+7]),
+         mechanism.Rate(15.0, AR, ARS, name='beta1', limits=[1e-15,1e+7]),
+         mechanism.Rate(15000.0, A2R, A2RS, name='beta2', limits=[1e-15,1e+7]),
+         mechanism.Rate(3000.0, ARS, AR, name='alpha1', limits=[1e-15,1e+7]),
+         mechanism.Rate(500.0, A2RS, A2R, name='alpha2', limits=[1e-15,1e+7]),
+         mechanism.Rate(2000.0, AR, R, name='k(-1)', limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 2000.0, A2R, AR, name='2k(-2)', limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 5.0e07, R, AR, name='2k(+1)', eff='c', limits=[1e-15,1e+10]),
+         mechanism.Rate(5.0e08, ARS, A2RS, name='k*(+2)', eff='c', fixed=True, limits=[1e-15,1e+10]),
+         mechanism.Rate(5.0e08, AR, A2R, name='k(+2)', eff='c', limits=[1e-15,1e+10]),
+         #mechanism.Rate(2 * 1.0 / 3.0, A2RS, ARS, name='k*(-2)', limits=[1e-15,1e+7])
+         mechanism.Rate(0.66667, A2RS, ARS, name='2k*(-2)', mr=True, limits=[1e-15,1e+7])
+         ]
+
+    CycleList = [mechanism.Cycle(['A2R*', 'AR*', 'AR', 'A2R'], ['A2R*', 'AR*'])]
+
+    return  mechanism.Mechanism(RateList, CycleList, mtitle=mectitle, rtitle=ratetitle) #, fastblk, KBlk)
+
+def CCCDO():
+    
+    mectitle = 'C-C-CD-O'
+    ratetitle = 'Colquhoun Hawkes 1995'
+
+    A2D  = mechanism.State('B', 'A2D', 0.0)
+    A2RS = mechanism.State('A', 'A2R*', 50e-12)
+    A2R  = mechanism.State('B', 'A2R',  0.0)
+    AR   = mechanism.State('B', 'AR',   0.0)
+    R    = mechanism.State('C', 'R',    0.0)
+
+    RateList = [
+         mechanism.Rate(46.5,       A2R,  A2RS, name='beta',  limits=[1e-15,1e+7]),
+         mechanism.Rate(91.6,       A2RS, A2R,  name='alpha', limits=[1e-15,1e+7]),
+         mechanism.Rate(1.8,        A2D,  A2RS, name='doff',  limits=[1e-15,1e+7]),
+         mechanism.Rate(8.4,        A2RS, A2D,  name='don',   limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 4.7,    A2R,  AR,   name='2koff', limits=[1e-15,1e+7]),
+         mechanism.Rate(5.0e06,     AR,   A2R,  name='kon',   eff='c', limits=[1e-15,1e+10]),
+         mechanism.Rate(4.7,        AR,   R,    name='koff',  limits=[1e-15,1e+7]),
+         mechanism.Rate(2 * 5.0e06, R,    AR,   name='2kon',  eff='c', limits=[1e-15,1e+10]),
+         ]
+
+    return  mechanism.Mechanism(RateList, mtitle=mectitle, rtitle=ratetitle)
 
 def AChR_diamond():
     
@@ -74,16 +131,16 @@ def load_AChR_diamond_independent_binding(rates=None):
     if rates is not None:
         mec.set_rateconstants(rates)
     mec.Rates[11].is_constrained = True
-    mec.Rates[11].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[11].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[11].constrain_args = [7, 1]             
     mec.Rates[13].is_constrained = True
-    mec.Rates[13].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[13].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[13].constrain_args = [9, 1]
     mec.Rates[10].is_constrained = True
-    mec.Rates[10].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[10].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[10].constrain_args = [6, 1]
     mec.Rates[12].is_constrained = True
-    mec.Rates[12].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[12].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[12].constrain_args = [8, 1]
     mec.update_constrains()
     return mec, mec.get_free_parameter_names()
@@ -102,22 +159,22 @@ def load_GlyR_flip_independent_binding(rates=None):
         mec.Rates[i].fixed = False
     # Constrained rates.
     mec.Rates[21].is_constrained = True
-    mec.Rates[21].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[21].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[21].constrain_args = [17, 3]
     mec.Rates[19].is_constrained = True
-    mec.Rates[19].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[19].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[19].constrain_args = [17, 2]
     mec.Rates[16].is_constrained = True
-    mec.Rates[16].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[16].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[16].constrain_args = [20, 3]
     mec.Rates[18].is_constrained = True
-    mec.Rates[18].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[18].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[18].constrain_args = [20, 2]
     mec.Rates[8].is_constrained = True
-    mec.Rates[8].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[8].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[8].constrain_args = [12, 1.5]
     mec.Rates[13].is_constrained = True
-    mec.Rates[13].constrain_func = mechanism.mechanism.constrain_rate_multiple
+    mec.Rates[13].constrain_func = mechanism.constrain_rate_multiple
     mec.Rates[13].constrain_args = [9, 2]
     mec.update_constrains()
     mec.set_mr(True, 7, 1)

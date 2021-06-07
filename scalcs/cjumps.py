@@ -3,11 +3,15 @@
 __author__="remis"
 __date__ ="$08-Nov-2011 21:43:14$"
 
+DEPRECATION_MESSAGE_1 = "'{0}' function is deprecated and will be removed in the future. Use '{1}' function instead."
+
+import warnings
 import numpy as np
 import scipy.integrate as scpi
 from scipy.special import erf
 
 from scalcs import qmatlib as qml
+
 
 ##### Calculate occupancies and rate of change of occupancies #####
 ##### using Q-matrix formalism #####
@@ -61,10 +65,9 @@ def P_t(t, eigs, w):
     Pt = np.zeros((eigs.shape))
     for i in range(eigs.size):
         Pt[i] = np.sum(w[:, i] * np.exp(eigs * t))
-    #Pt = np.sum(w * np.exp(eigs * t).reshape(w.shape[0],1,1), axis=1)
     return Pt
 
-def coefficient_calc(k, A, p_occup):
+def coefficient_calc(k, A, p):
     """
     Calculate weighted components for relaxation for each state p * An.
 
@@ -74,7 +77,7 @@ def coefficient_calc(k, A, p_occup):
         Number of states in mechanism.
     A : array-like, shape (k, k, k)
         Spectral matrices of Q matrix.
-    p_occup : array-like, shape (k, 1)
+    p : array-like, shape (k, 1)
         Occupancies of mechanism states.
 
     Returns
@@ -84,10 +87,85 @@ def coefficient_calc(k, A, p_occup):
 
     w = np.zeros((k, k))
     for n in range (k):
-        w[n, :] = np.dot(p_occup, A[n, :, :])
+        w[n, :] = np.dot(p, A[n, :, :])
     return w
 
 ##### Calculate macroscopic current response #####
+
+##### new #####
+
+def concentration_profile(step, reclen, cprofile, cargs):
+    """
+    Calculate concentration profile.
+
+    Parameters
+    ----------
+    reclen : float
+        Trace length.
+    step : float
+        Sampling time interval.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    """
+    t = np.arange(0, reclen, step)
+    return t, cprofile(t, cargs)
+
+def calculate_macro_response(mec, tstep, reclen, cfunc, cargs, method='direct', abserr=1.0e-8, relerr=1.0e-6):
+    """
+    Calculate concentration profile.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    step : float
+        Sampling time interval.
+    reclen : float
+        Trace length.
+    cfunc : function
+        Concentration profile.
+    cargs : tuple
+        Arguments for cfunc(t, cargs).
+
+    Returns
+    -------
+    t : ndarray
+        Time samples.
+    c : ndarray
+        Concentration profile.
+    P : ndarray
+        All state occupancies.
+    """
+    
+    t, conc = concentration_profile(tstep, reclen, cfunc, cargs)
+    mec.set_eff('c', conc[0])
+    
+    if method == 'direct':
+        pi = qml.pinf(mec.Q)
+        Pt = np.array([pi.copy()])
+        for c in conc[1:]:
+            mec.set_eff('c', c)
+            eigenvals, A = qml.eigs_sorted(mec.Q)
+            w = coefficient_calc(mec.k, A, pi)
+            pi = P_t(tstep, eigenvals, w)
+            Pt = np.append(Pt, [pi.copy()], axis=0)
+            
+    if method == 'integrate':
+        Pt = scpi.odeint(dPdt, qml.pinf(mec.Q), t, args=(mec, cfunc, cargs),
+            atol=abserr,rtol=relerr)
+    
+    return t, conc, Pt.transpose()
+
+##### old: keep for backward compatibility until fully deprecated 
 
 def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
     """
@@ -119,7 +197,8 @@ def solve_jump(mec, reclen, step, cfunc, cargs, abserr=1.0e-8, relerr=1.0e-6):
     Popen : ndarray
         Open probability.
     """
-
+    
+    warnings.warn('cjumps: ' + DEPRECATION_MESSAGE_1.format('solve_jump', 'calculate_macro_response'), DeprecationWarning, stacklevel=2)
     t = np.arange(0, reclen, step)
     mec.set_eff('c', cargs[1])
     P0 = qml.pinf(mec.Q)
@@ -158,7 +237,8 @@ def calc_jump (mec, reclen, step, cfunc, cargs):
     Popen : ndarray
         Open probability.
     """
-
+    
+    warnings.warn('cjumps: ' + DEPRECATION_MESSAGE_1.format('calc_jump', 'calculate_macro_response'), DeprecationWarning, stacklevel=2)
     t = np.arange(0, reclen, step)
     c =  cfunc(t, cargs)
     mec.set_eff('c', cargs[1])
@@ -175,7 +255,6 @@ def calc_jump (mec, reclen, step, cfunc, cargs):
     P = Pt.transpose()
     Popen = np.sum(P[: mec.kA], axis=0)
     return t, c, Popen, P
-
 
 
 ##### Concentration pulse profiles #####
@@ -288,6 +367,52 @@ def pulse_square(t, pars):
         c1 = cmax * np.ones(t2.shape)
         c2 = np.append(t1 * 0.0, c1)
         conc = np.append(c2, t3 * 0.0)
+
+    return conc + cb
+
+def pulse_square_with_prepulse(t, pars):
+    """
+    Generate square pulse with prepulse.
+
+    Parameters
+    ----------
+    t : ndarray or float
+        Time samples.
+    cmax : float
+        Peak concentration.
+    cb : float
+        background concentration.
+    base : float
+        Time before prepulse starts.
+    prepulse : float
+        Length of conditioning prepulse.
+    pulse : float
+        Square pulse width.
+    interpulse : float
+        Time between two square pulses.
+
+    Returns
+    -------
+    c : ndarray
+        Concentration profile.
+    """
+
+    cb, cpre, cmax, base, prepulse, pulse = pars
+    if np.isscalar(t):
+        if (t > base) and (t <= (base + prepulse)):
+            conc = cpre
+        elif (t > (base + prepulse)) and (t <= (base + prepulse + pulse)):
+            conc = cmax
+        else:
+            conc = 0.0
+    else:
+        c1 = t[np.where(t <= base)] * 0.0
+        t2 = t[np.where((t > base) & (t <= (base + prepulse)))]
+        c2 = np.append(c1, cpre * np.ones(t2.shape))
+        t3 = t[np.where((t > (base + prepulse)) & (t <= (base + prepulse + pulse)))]
+        c3 = np.append(c2, cmax * np.ones(t3.shape))
+        t4 = t[np.where(t > (base + prepulse + pulse))]
+        conc = np.append(c3, t4 * 0.0)
 
     return conc + cb
 
