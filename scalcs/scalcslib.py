@@ -104,7 +104,7 @@ def ideal_dwell_time_pdf_components(QAA, phiA):
     uA = np.ones((kA, 1))
     #TODO: remove 'for'
     for i in range(kA):
-        w[i] = np.dot(np.dot(np.dot(phiA, A[i]), (-QAA)), uA)
+        w[i] = np.dot(np.dot(np.dot(phiA, A[i]), (-QAA)), uA)[0]  # [0] at the end needed due to NumPy 1.25 deprecation
 
     return eigs, w
 
@@ -436,7 +436,7 @@ def asymptotic_areas(tres, roots, QAA, QFF, QAF, QFA, kA, kF, GAF, GFA):
     areas = np.zeros(kA)
     for i in range(kA):
         areas[i] = ((-1 / roots[i]) *
-            np.dot(phiA, np.dot(np.dot(R[i], np.dot(QAF, expQFF)), uF)))
+            np.dot(phiA, np.dot(np.dot(R[i], np.dot(QAF, expQFF)), uF)))[0]  # [0] at the end needed due to NumPy 1.25 deprecation
 
 #    rowA = np.zeros((kA,kA))
 #    colA = np.zeros((kA,kA))

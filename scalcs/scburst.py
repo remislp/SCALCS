@@ -101,7 +101,10 @@ def length_pdf_components(mec):
     eigs, A = qml.eigs(-mec.QEE)
     for i in range(mec.kE):
         w[i] = np.dot(np.dot(np.dot(phiBurst(mec),
-            A[i][:mec.kA, :mec.kA]), (-mec.QAA)), endBurst(mec))
+            A[i][:mec.kA, :mec.kA]), (-mec.QAA)), endBurst(mec))[0]
+        # Due to deprecation warning needs [0] at the end
+        #DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+        
     return eigs, w
 
 def length_mean(mec):
@@ -326,7 +329,7 @@ def open_time_total_pdf_components(mec):
 
     w = np.zeros(mec.kA)
     for i in range(mec.kA):
-        w[i] = np.dot(np.dot(np.dot(phiBurst(mec), A[i]), (-VAA)), uA)
+        w[i] = np.dot(np.dot(np.dot(phiBurst(mec), A[i]), (-VAA)), uA)[0]  # [0] at the end needed due to NumPy 1.25 deprecation
 
     return eigs, w
 
