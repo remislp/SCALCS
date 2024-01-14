@@ -13,7 +13,7 @@ import sys
 import os
 
 from scalcs import scalcsio
-from scalcs.samples import samples
+from samples import samples
 from scalcs import version
 from scalcs import scalcslib as scl
 from scalcs import scplotlib as scpl
