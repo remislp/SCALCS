@@ -4,9 +4,91 @@ curve calculations.
 
 import math
 import numpy as np
+from scipy import optimize
 
 from scalcs import qmatlib as qml
 from scalcs import scalcslib as scl
+
+class PopenCurve:
+    """Container for entire Popen curve"""
+    def __init__(self, mec=None, tres=0.0):
+        self.mec = mec
+        self.tres = tres
+        if mec is not None:
+            self.__crude_curve()
+
+    def popen(self, conc=0, eff='c'):
+        """
+        Calculate equilibrium open probability, Popen, and correct for
+        unresolved blockages in case of presence of fast pore blocker.
+
+        Parameters
+        ----------
+        conc : float
+            Concentration.
+
+        Returns
+        -------
+        popen : float
+            Open probability value at a given concentration.
+        """
+        self.mec.set_eff(eff, conc)
+        if self.tres == 0:
+            popen = scl.ideal_popen(self.mec)
+        else:
+            popen = scl.exact_popen(self.mec, self.tres)
+        if self.mec.fastblock:
+            popen = popen / (1 + conc / self.mec.fastKB)
+        return popen
+
+    def __crude_curve(self):
+        """ Estimate numerically maximum equilibrium open probability, 
+        maxPopen, Hill slope, nH, and concentration at half-maximum, EC50.
+        In case Popen curve goes through a maximum, the peak open
+        probability is returned. """
+    
+        concS, concE = 1.0e-12, 100.0    # start at 1 pM end at 100 mM
+        self._pilot_conc = np.logspace(np.log10(concS), np.log10(concE), 1000)
+        self._pilot_popen = []
+        for c in self._pilot_conc:
+            self._pilot_popen.append(Popen(self.mec, self.tres, c))
+        self.maxPopen = max(self._pilot_popen)
+        self.minPopen = min(self._pilot_popen)
+
+        self.is_not_decreasing = np.all(np.diff(self._pilot_popen) >= 0)
+        self.is_not_increasing = np.all(np.diff(self._pilot_popen) <= 0)
+        self.is_increasing = np.all(np.diff(self._pilot_popen) > 0)
+        self.is_decreasing = np.all(np.diff(self._pilot_popen) < 0)
+        self.is_monotonic = (self.is_not_decreasing or self.is_not_increasing)
+
+        def f(c):
+            return ((self.popen(c) - self.minPopen) / (self.maxPopen - self.minPopen)) - 0.5
+        self.EC50 = optimize.brentq(f, concS, concE)
+        self.nH = self.__nH()
+
+    def __nH(self):
+        # Calculate Popen curve around EC50
+        n = 64
+        dc = (math.log10(self.EC50 * 1.1) - math.log10(self.EC50 * 0.9)) / (n - 1)
+        c50 = np.zeros(n)
+        y50 = np.zeros(n)
+        for i in range(n):
+            c50[i] = (self.EC50 * 0.9) * pow(10, i * dc)
+            y50[i] = Popen(self.mec, self.tres, c50[i])
+
+        # Find two points around EC50.
+        i = np.searchsorted(c50, self.EC50, side="left") - 1
+
+        y1 = math.log10(math.fabs((y50[i] - self.minPopen) / (self.maxPopen - y50[i])))
+        y2 = math.log10(math.fabs((y50[i+1] - self.minPopen) / (self.maxPopen - y50[i+1])))
+        s1 = (y2 - y1) / (math.log10(c50[i+1]) - math.log10(c50[i]))
+        y3 = math.log10(math.fabs((y50[i+1] - self.minPopen) / (self.maxPopen - y50[i+1])))
+        y4 = math.log10(math.fabs((y50[i+2] - self.minPopen) / (self.maxPopen - y50[i+2])))
+        s2 = (y4 - y3) / (math.log10(c50[i+2]) - math.log10(c50[i+1]))
+
+        # Interpolate linearly for Hill slope at EC50
+        b = (s2 - s1) / (c50[i+1] - c50[i])
+        return s1 + b * (self.EC50 - c50[i])
 
 def Popen(mec, tres, conc=0, eff='c'):
     """
