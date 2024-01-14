@@ -54,20 +54,20 @@ Operating System :: MacOS
 
 NAME                = 'SCALCS'
 AUTHOR              = "Remigijus Lape, Christoph Schmidt-Hieber et al."
-AUTHOR_EMAIL        = "r.lape@ucl.ac.uk"
+AUTHOR_EMAIL        = "remis.lp@gmail.com"
 MAINTAINER          = "Remigijus Lape"
-MAINTAINER_EMAIL    = "r.lape@ucl.ac.uk"
+MAINTAINER_EMAIL    = "remis.lp@gmail.com"
 DESCRIPTION         = DOCLINES[0]
 LONG_DESCRIPTION    = "\n".join(DOCLINES[2:])
 PACKAGES            = ["scalcs"]
-SCRIPTS             = ['demo-dc.py', 'demo-rcj.py']
+SCRIPTS             = [] #
 URL                 = "https://github.com/DCPROGS/SCALCS"
 DOWNLOAD_URL        = "https://github.com/DCPROGS/SCALCS/tarball/master"
 LICENSE             = 'GPL2'
 CLASSIFIERS         = filter(None, CLASSIFIERS.split('\n'))
 PLATFORMS           = ["Windows", "Linux", "Solaris", "Mac OS-X", "Unix"]
 MAJOR               = 0
-MINOR               = 3
+MINOR               = 4
 MICRO               = 0
 ISRELEASED          = True
 VERSION             = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
