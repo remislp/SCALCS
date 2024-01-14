@@ -1,5 +1,4 @@
-
-from scalcs.samples import samples
+from samples import samples
 from scalcs import popen
 from scalcs import pdfs
 from scalcs import scburst

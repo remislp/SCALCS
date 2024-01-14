@@ -1,4 +1,4 @@
-from scalcs.samples import samples
+from samples import samples
 from scalcs import scalcsio
 from scalcs import scburst
 from scalcs import scalcslib as scl
@@ -14,7 +14,7 @@ import numpy as np
 class TestMecLoad(unittest.TestCase):
 
     def setUp(self):
-        filename = './scalcs/samples/samples.xlsx'
+        filename = './samples/samples.xlsx'
         os.path.isfile(filename)
         self.mec = scalcsio.load_from_excel_sheet(filename, sheet=0)
         self.conc = 100e-9 # 100 nM
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     unittest.TextTestRunner(verbosity=2).run(suite)
 
 def test_mr():
-    filename = './scalcs/samples/samples.xlsx'
+    filename = './samples/samples.xlsx'
     mec = scalcsio.load_from_excel_sheet(filename, sheet=1)
     assert mec.Rates[8].rateconstants == 3.0
     assert mec.Rates[10].rateconstants == 2.0

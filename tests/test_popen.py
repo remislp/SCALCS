@@ -1,7 +1,7 @@
 import numpy.testing as npt
 
 from scalcs import popen
-from scalcs.samples import samples
+from samples import samples
 from scalcs import scalcslib as scl
 from scalcs import scplotlib as scpl
 
