@@ -194,6 +194,42 @@ def ideal_mean_latency_given_start_state(mec, state):
 
     return mean
 
+
+def ideal_popen(mec):
+    """
+    Calculate ideal equilibrium open probability, Popen.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    p = qml.pinf(mec.QGG)
+    return np.sum(p[ : mec.kA]) / np.sum(p)
+
+def exact_popen(mec, tres):
+    """
+    Calculate equilibrium open probability, Popen, corrected for missed events.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+    tres : float
+        Time resolution.
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    hmopen, hmshut = exact_mean_open_shut_time(mec, tres)
+    return (hmopen / (hmopen + hmshut))
+
+
 def asymptotic_pdf(t, tres, tau, area):
     """
     Calculate asymptotic probabolity density function.
@@ -1375,6 +1411,44 @@ def sortShell2(vals, simp):
              simp[j] = tsimp
          gap //= 2
     return vals, simp
+
+
+def tcrits(mec):
+    eigs, w = ideal_dwell_time_pdf_components(mec.QII, qml.phiF(mec))
+    #sorted_taus_areas = np.sort(np.array([1 / eigs, w /eigs]))
+    #taus, areas = sorted_taus_areas[0], sorted_taus_areas[1]
+    taus, areas = sortShell2(1 / eigs, w /eigs)
+
+    comps = taus.shape[0]-1
+    tcrits = np.empty((3, comps))
+    for i in range(comps):
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_DC,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+        except:
+            tcrit = None
+        tcrits[0, i] = tcrit
+        
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_CN,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+        except:
+            tcrit = None
+        tcrits[1, i] = tcrit
+        
+        try:
+            tcrit = so.bisect(pdfs.expPDF_tcrit_Jackson,
+                taus[i], taus[i+1], args=(taus, areas, i+1))
+            enf, ens, pf, ps = pdfs.expPDF_misclassified(tcrit, taus, areas, i+1)
+            print_string += pdfs.expPDF_misclassified_printout(tcrit, enf, ens, pf, ps)
+        except:
+            tcrit = None
+        tcrits[2, i] = tcrit
+
+    return tcrits
+
 
 def printout_tcrit(mec):
     """
