@@ -1531,10 +1531,10 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
     kA, kI = mec.kA, mec.kI
     str += ('kA, kF = {0:d}, {1:d}\n'.format(kA, kI))
     GAF, GFA = qml.iGs(mec.Q, kA, kI)
-    rGAF, rGFA = np.rank(GAF), np.rank(GFA)
+    rGAF, rGFA = nplin.matrix_rank(GAF), nplin.matrix_rank(GFA)
     str += ('Ranks of GAF, GFA = {0:d}, {1:d}\n'.format(rGAF, rGFA))
     XFF = np.dot(GFA, GAF)
-    rXFF = np.rank(XFF)
+    rXFF = nplin.matrix_rank(XFF)
     str += ('Rank of GFA * GAF = {0:d}\n'.format(rXFF))
     ncF = rXFF - 1
     eigXFF, AXFF = qml.eigs(XFF)
@@ -1544,7 +1544,7 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
         str1 += '\t{0:.5g}'.format(eigXFF[i])
     str += str1 + '\n'
     XAA = np.dot(GAF, GFA)
-    rXAA = np.rank(XAA)
+    rXAA = np.ndim(XAA)
     str += ('Rank of GAF * GFA = {0:d}\n'.format(rXAA))
     ncA = rXAA - 1
     eigXAA, AXAA = qml.eigs(XAA)

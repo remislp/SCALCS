@@ -47,7 +47,7 @@ class SquareRootScale(mscale.ScaleBase):
 
     name = 'sqrtscale'
     def __init__(self, axis, **kwargs):
-        mscale.ScaleBase.__init__(self)
+        mscale.ScaleBase.__init__(self, axis)
     def get_transform(self):
         """
         Set the actual transform for the axis coordinates.
