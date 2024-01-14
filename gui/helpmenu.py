@@ -5,7 +5,7 @@ try:
 except:
     raise ImportError("pyqt module is missing")
 
-from scalcs.gui import myqtcommon
+from gui import myqtcommon
 
 class HelpMenu(QMenu):
     """

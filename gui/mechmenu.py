@@ -8,10 +8,10 @@ except:
     raise ImportError("pyqt module is missing")
 
 from scalcs import scalcsio
-from scalcs.samples import samples
+from samples import samples
 from scalcs import mechanism
 
-from scalcs.gui import myqtcommon
+from gui import myqtcommon
 
 class MechMenu(QMenu):
     """

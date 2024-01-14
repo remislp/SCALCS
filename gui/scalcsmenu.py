@@ -11,7 +11,7 @@ except:
 from scalcs import scplotlib as scpl
 from scalcs import scalcslib as scl
 from scalcs import popen
-from scalcs.gui import myqtcommon
+from gui import myqtcommon
 
 class ScalcsMenu(QMenu):
     """

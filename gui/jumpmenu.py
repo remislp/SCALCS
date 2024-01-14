@@ -9,7 +9,7 @@ except:
 from scalcs import cjumps
 from scalcs import scplotlib as scpl
 
-from scalcs.gui import myqtcommon
+from gui import myqtcommon
 
 class JumpMenu(QMenu):
     """

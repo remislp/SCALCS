@@ -7,7 +7,7 @@ except:
 
 from scalcs import scburst
 from scalcs import scplotlib as scpl
-from scalcs.gui import myqtcommon
+from gui import myqtcommon
 
 class BurstMenu(QMenu):
     """
