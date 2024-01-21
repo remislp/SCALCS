@@ -784,6 +784,8 @@ def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
     Calculate Z constants for the exact open time pdf (Eq. 3.22, HJC90).
     Exchange A and F for shut time pdf.
 
+    TODO: remove eigenvalues from return of this function
+
     Parameters
     ----------
     t : float
@@ -839,4 +841,4 @@ def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
     Z10 = np.array([np.dot(C, M) for C in C10])
     Z11 = np.array([np.dot(C, M) for C in C11])
 
-    return eigen, Z00, Z10, Z11
+    return Z00, Z10, Z11

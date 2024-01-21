@@ -21,10 +21,12 @@ def expPDF(t, tau, area):
     f : float or ndarray.
     """
 
-    if type(tau) == type(np.array(())):
+    #if type(tau) == type(np.array(())):
+    if isinstance(tau, np.ndarray):
         f = np.zeros(t.shape)
         for i in range(tau.shape[0]):
             f += (area[i] / tau[i]) * np.exp(-t / tau[i])
+        #f = np.sum((area / tau) * np.exp(-t[:, np.newaxis] / tau), axis=0)
     else:
         f = (area / tau) * np.exp(-t / tau)
     return f
