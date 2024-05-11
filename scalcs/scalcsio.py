@@ -1018,6 +1018,8 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
     mec.Mechanism(RateList, StateList, ncyc) : instance of Mechanism class.
     """
 
+    if verbose: print("Inside 'load_from_ecel_sheet'")
+    if verbose: print("About to read file: " + filename)
     #TODO: implement constrain reading and setting
     df = pd.read_excel(filename, sheet_name=sheet, index_col=None, header=None)
 
@@ -1055,7 +1057,7 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
             if verbose: print("Rate", row[1], "is MR constrained")
             mr = True
             cycles[int(row[9])-1].mrconstr = [row[2], row[3]]
-        if row[8] is 'fixed': fixed = True
+        if row[8] == 'fixed': fixed = True
 #        if row[8] is 'multiply':
 #            cfunc = mechanism.multiply
 
@@ -1064,4 +1066,4 @@ def load_from_excel_sheet(filename, sheet=0, verbose=False):
                                     eff=bound, fixed=fixed, mr=mr, limits=[row[6], row[7]],
                                     is_constrained=constrained, constrain_func=cfunc, constrain_args=cargs))
 
-    return mechanism.Mechanism(rates, cycles, mtitle=mectitle, rtitle=ratetitle)
+    return mechanism.Mechanism(rates, cycles, mtitle=mectitle, rtitle=ratetitle), mectitle

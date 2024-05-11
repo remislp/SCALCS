@@ -34,6 +34,8 @@ class MechMenu(QMenu):
             "&Load from DCprogs PRT File...", self.onLoadPrtFile)
         loadFromModFileAction = myqtcommon.createAction(parent, 
             "&Load from ChannelLab MOD File...", self.onLoadModFile)
+        loadFromExcelFileAction = myqtcommon.createAction(parent, 
+            "&Load from Excel File...", self.onLoadExcelFile)
         modifyMecAction = myqtcommon.createAction(parent, 
             "&Modify loaded mec rates", self.onModifyMec)
         modifyStatesAction = myqtcommon.createAction(parent, 
@@ -44,6 +46,7 @@ class MechMenu(QMenu):
         self.addActions([loadDemo, #1Action, loadDemo2Action,
             #loadFromYAMLFileAction,
             loadFromMecFileAction, loadFromPrtFileAction, loadFromModFileAction,
+            loadFromExcelFileAction,
             modifyMecAction, modifyStatesAction, saveMecAction])
             
     def onLoadDemo(self):
@@ -144,6 +147,25 @@ class MechMenu(QMenu):
         self.modifyMec(self.parent.mec, self.parent.log)
         self.parent.log.write("\n" + title + "\n")
         self.parent.mec.printout(self.parent.log)
+
+    def onLoadExcelFile(self):
+        """
+        Load a mechanism and rates from Excel file.
+        Called from menu Load|From Excel .xmls File...
+        """
+        filename, filter = QFileDialog.getOpenFileName(self,
+            "Open Excel File...", self.parent.path,
+            "Excel (*.xlsx)")
+        self.parent.path = os.path.split(str(filename))[0]
+        self.parent.log.write("\nFile to read: " + 
+            os.path.split(str(filename))[1])
+
+        #TODO: add window to choose mecanism from Excel file containing several mecs
+        self.parent.mec, title = scalcsio.load_from_excel_sheet(filename, verbose=True)
+        self.modifyMec(self.parent.mec, self.parent.log)
+        self.parent.log.write("\n" + title + "\n")
+        self.parent.mec.printout(self.parent.log)
+
 
     def onModifyMec(self):
         """
