@@ -37,79 +37,39 @@ import numpy as np
 from numpy import linalg as nplin
 import math
 
-#import dcpypsrc
+#from warnings import deprecated
+from deprecated import deprecated
 
-def eigs(Q):
+def eigenvalues_and_spectral_matrices(Q, do_sorting=True):
     """
     Calculate eigenvalues and spectral matrices of a matrix Q.
 
     Parameters
     ----------
     Q : array_like, shape (k, k)
+        Input matrix whose eigenvalues and spectral matrices are to be computed.
+    do_sorting : bool, optional (default=True)
+        If True, sorts the eigenvalues and spectral matrices based on the real part of the eigenvalues.
 
     Returns
     -------
     eigvals : ndarray, shape (k,)
-        Eigenvalues of M.
+        Eigenvalues of Q.
     A : ndarray, shape (k, k, k)
         Spectral matrices of Q.
     """
-
     eigvals, M = nplin.eig(Q)
     N = nplin.inv(M)
     k = N.shape[0]
-    A = np.zeros((k, k, k))
-    # TODO: make this a one-liner avoiding loops
-    # DO NOT DELETE commented explicit loops for future reference
-    #
-    # rev. 1
-    # for i in range(k):
-    #     X = np.empty((k, 1))
-    #     Y = np.empty((1, k))
-    #     X[:, 0] = M[:, i]
-    #     Y[0] = N[i]
-    #     A[i] = np.dot(X, Y)
-    # END DO NOT DELETE
-    #
-    # rev. 2 - cumulative time fastest on my system
-    for i in range(k):
-        A[i] = np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k))
+    A = np.einsum('ij,kj->kij', M, N)  # Efficient matrix outer product
 
-    # rev. 3 - cumulative time not faster
-    # A = np.array([
-    #         np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k)) \
-    #             for i in range(k)
-    #         ])
+    if do_sorting:
+        sorted_indices = eigvals.real.argsort()
+        eigvals = eigvals[sorted_indices]
+        A = A[sorted_indices]
 
     return eigvals, A
 
-def eigs_sorted(Q):
-    """
-    Calculate eigenvalues and spectral matrices of a matrix Q. 
-    Return eigenvalues in ascending order 
-
-    Parameters
-    ----------
-    Q : array_like, shape (k, k)
-
-    Returns
-    -------
-    eigvals : ndarray, shape (k,)
-        Eigenvalues of M.
-    A : ndarray, shape (k, k, k)
-        Spectral matrices of Q.
-    """
-
-    eigvals, M = nplin.eig(Q)
-    N = nplin.inv(M)
-    k = N.shape[0]
-    A = np.zeros((k, k, k))
-    for i in range(k):
-        A[i] = np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k))
-    sorted_indices = eigvals.real.argsort()
-    eigvals = eigvals[sorted_indices]
-    A = A[sorted_indices, : , : ]
-    return eigvals, A
 
 def expQt(M, t):
     """
@@ -842,3 +802,79 @@ def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
     Z11 = np.array([np.dot(C, M) for C in C11])
 
     return Z00, Z10, Z11
+
+### Deprecated functions 
+
+@deprecated("Use 'eigenvalues_and_spectral_matrices'")
+def eigs(Q):
+    """
+    Calculate eigenvalues and spectral matrices of a matrix Q.
+
+    Parameters
+    ----------
+    Q : array_like, shape (k, k)
+
+    Returns
+    -------
+    eigvals : ndarray, shape (k,)
+        Eigenvalues of M.
+    A : ndarray, shape (k, k, k)
+        Spectral matrices of Q.
+    """
+
+    eigvals, M = nplin.eig(Q)
+    N = nplin.inv(M)
+    k = N.shape[0]
+    A = np.zeros((k, k, k))
+    # TODO: make this a one-liner avoiding loops
+    # DO NOT DELETE commented explicit loops for future reference
+    #
+    # rev. 1
+    # for i in range(k):
+    #     X = np.empty((k, 1))
+    #     Y = np.empty((1, k))
+    #     X[:, 0] = M[:, i]
+    #     Y[0] = N[i]
+    #     A[i] = np.dot(X, Y)
+    # END DO NOT DELETE
+    #
+    # rev. 2 - cumulative time fastest on my system
+    for i in range(k):
+        A[i] = np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k))
+
+    # rev. 3 - cumulative time not faster
+    # A = np.array([
+    #         np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k)) \
+    #             for i in range(k)
+    #         ])
+
+    return eigvals, A
+
+@deprecated("Use 'eigenvalues_and_spectral_matrices'")
+def eigs_sorted(Q):
+    """
+    Calculate eigenvalues and spectral matrices of a matrix Q. 
+    Return eigenvalues in ascending order 
+
+    Parameters
+    ----------
+    Q : array_like, shape (k, k)
+
+    Returns
+    -------
+    eigvals : ndarray, shape (k,)
+        Eigenvalues of M.
+    A : ndarray, shape (k, k, k)
+        Spectral matrices of Q.
+    """
+
+    eigvals, M = nplin.eig(Q)
+    N = nplin.inv(M)
+    k = N.shape[0]
+    A = np.zeros((k, k, k))
+    for i in range(k):
+        A[i] = np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k))
+    sorted_indices = eigvals.real.argsort()
+    eigvals = eigvals[sorted_indices]
+    A = A[sorted_indices, : , : ]
+    return eigvals, A
