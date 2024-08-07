@@ -34,9 +34,8 @@ Phil Trans R Soc Lond A 354, 2555-2590.
 """
 
 import numpy as np
-from numpy import linalg as nplin
-import math
-
+import numpy.linalg as nplin
+#import math
 #from warnings import deprecated
 from deprecated import deprecated
 
@@ -60,7 +59,6 @@ def eigenvalues_and_spectral_matrices(Q, do_sorting=True):
     """
     eigvals, M = nplin.eig(Q)
     N = nplin.inv(M)
-    k = N.shape[0]
     A = np.einsum('ij,kj->kij', M, N)  # Efficient matrix outer product
 
     if do_sorting:
@@ -70,64 +68,45 @@ def eigenvalues_and_spectral_matrices(Q, do_sorting=True):
 
     return eigvals, A
 
-
-def expQt(M, t):
+def expQ(Q, t):
     """
-    Calculate exponential of a matrix M.
-        expM = exp(M * t)
+    Calculate the matrix exponential of Q * t.
 
     Parameters
     ----------
-    M : array_like, shape (k, k)
+    Q : array_like, shape (k, k)
+        Input matrix.
     t : float
-        Time.
+        Time scalar.
 
     Returns
     -------
-    expM : ndarray, shape (k, k)
+    expQ : ndarray, shape (k, k)
+        Exponential of matrix Q * t.
     """
+    eigvals, A = eigenvalues_and_spectral_matrices(Q)
+    return np.sum(A * np.exp(eigvals * t).reshape(-1, 1, 1), axis=0)
 
-    eigvals, A = eigs(M)
-
-    # DO NOT DELETE commented explicit loops for future reference
-    # k = M.shape[0]
-    # expM = np.zeros((k, k))
-    # rev. 1
-    # TODO: avoid loops
-    #    for i in range(k):
-    #        for j in range(k):
-    #            for m in range(k):
-    #                expM[i, j] += A[m, i, j] * math.exp(eigvals[m] * t)
-    #
-    # rev.2:
-    # for m in range(k):
-    #     expM += A[m] * math.exp(eigvals[m] * t)
-    # END DO NOT DELETE
-
-    expM = np.sum(A * np.exp(eigvals * t).reshape(A.shape[0],1,1), axis=0)
-    return expM
-
-def Qpow(M, n):
+def powQ(Q, n):
     """
-    Rise matrix M to power n.
+    Raise matrix Q to the power of n.
 
     Parameters
     ----------
-    M : array_like, shape (k, k)
+    Q : array_like, shape (k, k)
+        Input square matrix.
     n : int
-        Power.
+        Power to which the matrix is to be raised.
 
     Returns
     -------
-    Mn : ndarray, shape (k, k)
+    Qn : ndarray, shape (k, k)
+        Matrix Q raised to the power of n.
     """
+    eigvals, A = eigenvalues_and_spectral_matrices(Q)
+    Qn = np.sum(A * (eigvals**n).reshape(-1, 1, 1), axis=0)
+    return Qn
 
-    k = M.shape[0]
-    eig, A = eigs(M)
-    Mn = np.zeros((k, k))
-    for i in range(k):
-        Mn += A[i, :, :] * pow(eig[i], n)
-    return Mn
 
 def pinf1(Q):
     """
@@ -878,3 +857,64 @@ def eigs_sorted(Q):
     eigvals = eigvals[sorted_indices]
     A = A[sorted_indices, : , : ]
     return eigvals, A
+
+@deprecated("Use 'expQ'")
+def expQt(M, t):
+    """
+    Calculate exponential of a matrix M.
+        expM = exp(M * t)
+
+    Parameters
+    ----------
+    M : array_like, shape (k, k)
+    t : float
+        Time.
+
+    Returns
+    -------
+    expM : ndarray, shape (k, k)
+    """
+
+    eigvals, A = eigs(M)
+
+    # DO NOT DELETE commented explicit loops for future reference
+    # k = M.shape[0]
+    # expM = np.zeros((k, k))
+    # rev. 1
+    # TODO: avoid loops
+    #    for i in range(k):
+    #        for j in range(k):
+    #            for m in range(k):
+    #                expM[i, j] += A[m, i, j] * math.exp(eigvals[m] * t)
+    #
+    # rev.2:
+    # for m in range(k):
+    #     expM += A[m] * math.exp(eigvals[m] * t)
+    # END DO NOT DELETE
+
+    expM = np.sum(A * np.exp(eigvals * t).reshape(A.shape[0],1,1), axis=0)
+    return expM
+
+
+@deprecated("Use 'powQ'")
+def Qpow(M, n):
+    """
+    Rise matrix M to power n.
+
+    Parameters
+    ----------
+    M : array_like, shape (k, k)
+    n : int
+        Power.
+
+    Returns
+    -------
+    Mn : ndarray, shape (k, k)
+    """
+
+    k = M.shape[0]
+    eig, A = eigs(M)
+    Mn = np.zeros((k, k))
+    for i in range(k):
+        Mn += A[i, :, :] * pow(eig[i], n)
+    return Mn
