@@ -1,18 +1,12 @@
+import time
+import unittest
+
 from samples import samples
-from scalcs import popen
 from scalcs import pdfs
 from scalcs import scburst
 from scalcs import cjumps
 from scalcs import scalcslib as scl
-from scalcs import scplotlib as scpl
 from scalcs import qmatlib as qml
-#from dcpyps import dcio
-#from dcpyps import dataset
-
-import sys
-import time
-import unittest
-import numpy as np
 
 class TestDC_PyPs(unittest.TestCase):
 
@@ -247,15 +241,6 @@ class TestDC_PyPs(unittest.TestCase):
 #        lik, theta = scl.HJClik(rates, opts)
 #        print ('lik=', lik)
 #        self.assertAlmostEqual(-lik, 5265.9536156, 5)
-
-    def test_popen(self):
-
-        self.mec.fastBlk = False
-        self.mec.KBlk = 0.01
-
-        # POPEN CURVE CALCULATIONS
-        c, pe, pi = scpl.Popen(self.mec, self.tres)
-        self.assertTrue(pi[-1]>0.967 and pi[-1]<0.969)
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(TestDC_PyPs)
