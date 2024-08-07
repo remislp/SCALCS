@@ -84,6 +84,9 @@ class State(object):
         self.no = None # will be assigned in Mechanism.__init__
                        # This is now ZERO-based!
 
+    def __repr__(self):
+        return "State {0} ({1})".format(self.name, self.statetype)
+
 
 class Cycle(object):
     """
