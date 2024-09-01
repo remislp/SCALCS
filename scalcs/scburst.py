@@ -8,10 +8,419 @@ import sys
 
 import numpy as np
 from numpy import linalg as nplin
+from deprecated import deprecated
 
 from scalcs import qmatlib as qml
 from scalcs import pdfs
 
+from scalcs.qmatlib import QMatrix
+
+class SCBurst(QMatrix):
+    '''
+    Print Q-Matrix stuff.
+    '''
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        # Initialize the QMatrix instance.
+        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        self.GAB = qml.GXY(self.QAA, self.QAB) 
+        self.GBA = qml.GXY(self.QBB, self.QBA)
+        self.GABAG = np.dot(self.GAB, self.GBA)
+        self.probability_of_ending = (self.IA - self.GABAG)
+        self.GAF = qml.GXY(self.QAA, self.QAF) 
+        self.GFA = qml.GXY(self.QFF, self.QFA)
+        self.invQAA = nplin.inv(self.QAA)
+        self.invQBB = nplin.inv(self.QBB)
+        self.invQFF = nplin.inv(self.QFF)
+        self.pinfC = self.pinf[self.kE : self.kG]
+        self.pinfA = self.pinf[ : self.kA]
+
+    def start_burst(self):
+        """
+        Calculate the start probabilities of a burst (Eq. 3.2, CH82).
+        phiB = (pCinf * (QCB * GBA + QCA)) / (pCinf * (QCB * GBA + QCA) * uA)
+
+        Returns
+        -------
+        phiB : array_like, shape (1, kA)
+        """
+
+        nom = np.dot(self.pinfC, (np.dot(self.QCB, self.GBA) + self.QCA))        
+        return nom / np.dot(nom, self.uA)
+
+    def end_burst(self):
+        r"""
+        Calculate the end vector for a burst (Eq. 3.4, CH82).
+
+        .. math::
+
+        \bs{e}_\text{b} = (\bs{I}-\bs{G}_\cl{AB} \bs{G}_\cl{BA}) \bs{u}_\cl{A}
+
+        Returns
+        -------
+        eB : array_like, shape (kA, 1)
+        """
+
+        #return np.dot((self.IA - np.dot(self.GAB, self.GBA)), self.uA)
+        return np.dot(self.probability_of_ending, self.uA)
+
+    def mean_number_of_openings(self):
+        """
+        Calculate the mean number of openings per burst (Eq. 3.7, CH82).
+        mu = phiB * (I - GAB * GBA)^(-1) * uA
+
+        Returns
+        -------
+        mu : float
+            The mean number ofopenings per burst.
+        """
+
+        return np.dot(np.dot(self.start_burst(), nplin.inv(self.probability_of_ending)), self.uA)[0]
+
+
+    def openings_distr_components(self):
+        """
+        Calculate coeficients for geometric ditribution P(r)- probability of
+        seeing r openings (Eq. 3.9 CH82):
+        P(r) = sum(W * rho^(r-1))
+        where w
+        wm = phiB * Am * endB (Eq. 3.10 CH82)
+        and rho- eigenvalues of GAB * GBA.
+
+        Returns
+        -------
+        rho : ndarray, shape (kA,)
+        w : ndarray, shape (kA,)
+        """
+
+        #GG = np.dot(self.GAB, self.GBA)
+        rho, A = qml.eigenvalues_and_spectral_matrices(self.GABAG)
+        w = np.dot(np.dot(self.start_burst(), A), self.end_burst()).transpose()[0]
+        return rho, w
+
+    def openings_distr(self, r):
+        """
+        The distribution of openings per burst (Eq. 3.5, CH82).
+        P(r) = phiB * (GAB * GBA)^(r-1) * eB
+
+        Parameters
+        ----------
+        r : int
+            Number of openings per burst.
+
+        Returns
+        -------
+        Pr : float
+            Probability of seeing r openings per burst.
+        """
+
+        #GG = np.dot(self.GAB, self.GBA)
+        if r == 1:
+            interm = np.eye(self.kA)
+        elif r == 2:
+            interm = self.GABAG
+        else:
+            interm = self.GABAG
+            for i in range(2, r):
+                interm = np.dot(interm, self.GABAG)
+        return np.dot(np.dot(self.start_burst(), interm), self.end_burst())
+
+    def openings_cond_distr_depend_on_start_state(self, r):
+        """
+        The distribution of openings per burst coditional on starting state.
+
+        Parameters
+        ----------
+        r : int
+            Number of openings per burst.
+
+        Returns
+        -------
+        vecPr : array_like, shape (kA, 1)
+            Probability of seeing r openings per burst depending on starting state.
+        """
+
+        #GG = np.dot(self.GAB, self.GBA)
+        if r == 1:
+            interm = np.eye(self.kA)
+        elif r == 2:
+            interm = self.GABAG
+        else:
+            interm = self.GABAG
+            for i in range(2, r):
+                interm = np.dot(interm, self.GABAG)
+        vecPr = np.dot(interm, self.end_burst())
+        return vecPr.transpose()
+
+    def mean_length(self):
+        """
+        Calculate the mean burst length (Eq. 3.19, CH82).
+        m = PhiB * (I - GAB * GBA)^(-1) * (-QAA^(-1)) * \
+            (I - QAB * (QBB^(-1)) * GBA) * uA
+
+        Returns
+        -------
+        m : float
+            The mean burst length.
+        """
+
+        interm1 = nplin.inv(self.probability_of_ending)
+        interm2 = self.IA - np.dot(np.dot(self.QAB, self.invQBB), self.GBA)
+        return (np.dot(np.dot(np.dot(np.dot(self.start_burst(), interm1), -self.invQAA), interm2), self.uA)[0])
+
+    def length_pdf_components(self):
+        """
+        Calculate eigenvalues and amplitudes for an ideal (no missed events)
+        exponential burst length probability density function.
+
+        Returns
+        -------
+        eigs : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        w = np.zeros(self.kE)
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QEE)
+        for i in range(self.kE):
+            w[i] = np.dot(np.dot(np.dot(self.start_burst(),
+                A[i][:self.kA, :self.kA]), (-self.QAA)), self.end_burst())[0]
+        return eigs, w
+
+    def length_pdf_no_single_openings_components(self):
+        """
+        Calculate eigenvalues and amplitudes for an ideal (no missed events)
+        exponential burst length probability density function for bursts with
+        two or more openings.
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        eA, AA = qml.eigenvalues_and_spectral_matrices(-self.QAA)
+        eE, AE = qml.eigenvalues_and_spectral_matrices(-self.QEE)
+        e = np.append(eE, eA)
+        A = np.append(AE[:,:self.kA, :self.kA], -AA, axis=0)
+        w = np.zeros(self.kA + self.kE)
+
+        for i in range(self.kA + self.kE):
+            w[i] = np.dot(np.dot(np.dot(self.start_burst(),
+                A[i]), (-self.QAA)), self.end_burst()) / self.probability_more_than_one_opening()
+        
+        return e, w
+
+    def length_pdf_direct(self, t):
+        """
+        Probability density function of the burst length (Eq. 3.17, CH82).
+        f(t) = phiB * [PEE(t)]AA * (-QAA) * eB, where PEE(t) = exp(QEE * t)
+
+        Parameters
+        ----------
+        t : float
+            Burst length.
+
+        Returns
+        -------
+        f : float
+            PDF value for given burst length- t.
+        """
+
+        expQEEA = qml.expQt(self.QEE, t)[ : self.kA, : self.kA]
+        return np.dot(np.dot(np.dot(self.start_burst(), expQEEA), -self.QAA), self.end_burst())
+
+    def length_cond_pdf(self, t):
+        """
+        The distribution of burst length coditional on starting state.
+
+        Parameters
+        ----------
+        t : float
+            Burst length.
+
+        Returns
+        -------
+        vec : array_like, shape (kA, 1)
+            Probability of seeing burst length t depending on starting state.
+        """
+
+        expQEEA = qml.expQt(self.QEE, t)[ : self.kA, : self.kA]
+        vec = np.dot(np.dot(expQEEA, -self.QAA), self.end_burst())
+        return vec.transpose()
+
+    def mean_open_time(self):
+        """
+        Calculate the mean total open time per burst (Eq. 3.26, CH82).
+
+        Returns
+        -------
+        m : float
+            The mean total open time per burst.
+        """
+
+        VAA = self.QAA + np.dot(self.QAB, self.GBA)
+        return np.dot(np.dot(self.start_burst(), -nplin.inv(VAA)), self.uA)[0]
+    
+    def total_open_time_pdf_components(self):
+        """
+        Eq. 3.23, CH82
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        VAA = self.QAA + np.dot(self.QAB, self.GBA)
+        e, A = qml.eigenvalues_and_spectral_matrices(-VAA)
+
+        w = np.zeros(self.kA)
+        for i in range(self.kA):
+            w[i] = np.dot(np.dot(np.dot(self.start_burst(), A[i]), (-VAA)), self.uA)[0]
+
+        return e, w
+
+    def probability_more_than_one_opening(self):
+        """Calculate probability of a burst having more than one opening. 
+           Probability of a burst having just one opening is 
+           P(1) = start_burst * end_burst"""
+        
+        return 1 - np.dot(self.start_burst(), self.end_burst())[0]
+
+    def first_opening_length_pdf_components(self):
+        """
+        Calculate time constants and amplitudes for an ideal (no missed events)
+        pdf of first opening in a burst with 2 or more openings.
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        e, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
+        w = np.zeros(self.kA)
+        for i in range(self.kA):
+            w[i] = np.dot(np.dot(np.dot(np.dot(self.start_burst(),
+                A[i]), (-self.QAA)), np.dot(self.GAB, self.GBA)), self.uA) / self.probability_more_than_one_opening()
+
+        return e, w
+
+    def mean_shut_time(self):
+        """
+        Calculate the mean total shut time per burst (Eq. 3.41, CH82) for all bursts (including one opening bursts).
+
+        Returns
+        -------
+        m : float
+            The mean total shut time per burst.
+        """
+
+        WBB = self.QBB + np.dot(self.QBA, self.GAB)
+        return np.dot(np.dot(np.dot(np.dot(self.start_burst(), self.GAB), -nplin.inv(WBB)), self.GBA), self.uA)[0]
+    
+
+    def mean_shut_times_between_bursts(self):
+        """
+        Calculate the mean length of the gap between bursts (Eq. 3.86, CH82).
+
+        Returns
+        -------
+        m : float
+            The mean shut time between bursts.
+        """
+
+        end = np.dot(-self.QAA, self.end_burst())
+        start = self.pinfA / np.dot(self.pinfA, end)
+        m1 = np.dot(np.dot(self.QAF, -self.invQFF), self.GFA)
+        m2 = np.dot(np.dot(self.QAB, -self.invQBB), self.GBA)
+        return np.dot(np.dot(start, m1 - m2), self.uA)[0]
+
+    def shut_times_inside_burst_pdf_components(self):
+        """
+        Calculate time constants and amplitudes for a PDF of all gaps within
+        bursts (Eq. 3.75, CH82).
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        e, A = qml.eigenvalues_and_spectral_matrices(-self.QBB)
+        w = np.zeros(self.kB)
+        for i in range(self.kB):
+            w[i] = np.dot(np.dot(np.dot(np.dot(np.dot(np.dot(self.start_burst(), nplin.inv(self.probability_of_ending)),
+                self.GAB), A[i]), (-self.QBB)), self.GBA), self.uA) / (self.mean_number_of_openings() - 1)
+
+        return e, w
+
+    def shut_time_total_pdf_components_2more_openings(self):
+        """
+        Calculate time constants and amplitudes for a PDF of total shut time 
+        per burst (Eq. 3.40, CH82) for bursts with at least 2 openings.
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        WBB = self.QBB + np.dot(self.QBA, self.GAB)
+        e, A = qml.eigenvalues_and_spectral_matrices(-WBB)
+        norm = 1 - np.dot(self.start_burst(), self.end_burst())[0]
+
+        w = np.zeros(self.kB)
+        for i in range(self.kB):
+            w[i] = np.dot(np.dot(np.dot(np.dot(self.start_burst(), self.GAB),
+                A[i]), (self.QBA)), self.end_burst()) / norm
+
+        return e, w
+
+    def shut_times_between_burst_pdf_components(self):
+        """
+        Calculate time constants and amplitudes for a PDF of gaps between bursts.
+
+        Returns
+        -------
+        e : ndarray, shape(k, 1)
+            Eigenvalues.
+        w : ndarray, shape(k, 1)
+            Component amplitudes.
+        """
+
+        eigsB, AmatB = qml.eigenvalues_and_spectral_matrices(-self.QBB)
+        eigsF, AmatF = qml.eigenvalues_and_spectral_matrices(-self.QFF)
+        end = np.dot(-self.QAA, self.end_burst())
+        start = self.pinfA / np.dot(self.pinfA, end)
+
+        rowB = np.dot(start, self.QAB)
+        rowF = np.dot(start, self.QAF)
+        colB = np.dot(self.QBA, self.uA)
+        colF = np.dot(self.QFA, self.uA)
+        wB = -np.dot(np.dot(rowB, AmatB), colB)
+        wF = np.dot(np.dot(rowF, AmatF), colF)
+
+        w = np.append(wB, wF)
+        e = np.append(eigsB, eigsF)
+        return e, w
+
+
+
+#######################   DEPRECATED   ##############################
+@deprecated("Use 'SCBurst.start_burst'")
 def phiBurst(mec):
     """
     Calculate the start probabilities of a burst (Eq. 3.2, CH82).
@@ -35,6 +444,7 @@ def phiBurst(mec):
     phiB = nom / denom
     return phiB
 
+@deprecated("Use 'SCBurst.end_burst'")
 def endBurst(mec):
     r"""
     Calculate the end vector for a burst (Eq. 3.4, CH82).
@@ -59,10 +469,11 @@ def endBurst(mec):
     eB = np.dot((I - np.dot(GAB, GBA)), uA)
     return eB
 
-def length_pdf(mec, t):
+@deprecated("Use 'SCBurst.mean_number_of_opening'")
+def openings_mean(mec):
     """
-    Probability density function of the burst length (Eq. 3.17, CH82).
-    f(t) = phiB * [PEE(t)]AA * (-QAA) * eB, where PEE(t) = exp(QEE * t)
+    Calculate the mean number of openings per burst (Eq. 3.7, CH82).
+    mu = phiB * (I - GAB * GBA)^(-1) * uA
 
     Parameters
     ----------
@@ -71,126 +482,16 @@ def length_pdf(mec, t):
 
     Returns
     -------
-    f : float
+    mu : float
+        The mean number ofopenings per burst.
     """
 
-    expQEEA = qml.expQt(mec.QEE, t)[:mec.kA, :mec.kA]
-    f = np.dot(np.dot(np.dot(phiBurst(mec), expQEEA), -mec.QAA),
-        endBurst(mec))
-    return f
-
-def length_pdf_components(mec):
-    """
-    Calculate time constants and amplitudes for an ideal (no missed events)
-    exponential burst length probability density function.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    eigs : ndarray, shape(k, 1)
-        Time constants.
-    w : ndarray, shape(k, 1)
-        Component amplitudes.
-    """
-
-    w = np.zeros(mec.kE)
-    eigs, A = qml.eigs(-mec.QEE)
-    for i in range(mec.kE):
-        w[i] = np.dot(np.dot(np.dot(phiBurst(mec),
-            A[i][:mec.kA, :mec.kA]), (-mec.QAA)), endBurst(mec))[0]
-        # Due to deprecation warning needs [0] at the end
-        #DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
-        
-    return eigs, w
-
-def length_mean(mec):
-    """
-    Calculate the mean burst length (Eq. 3.19, CH82).
-    m = PhiB * (I - GAB * GBA)^(-1) * (-QAA^(-1)) * \
-        (I - QAB * (QBB^(-1)) * GBA) * uA
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    m : float
-        The mean burst length.
-    """
-
-    uA = np.ones((mec.kA, 1))
+    uA = np.ones((mec.kA,1))
     I = np.eye(mec.kA)
-    invQAA = -1 * nplin.inv(mec.QAA)
-    invQBB = nplin.inv(mec.QBB)
     GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    interm1 = nplin.inv(I - np.dot(GAB, GBA))
-    interm2 = I - np.dot(np.dot(mec.QAB, invQBB), GBA)
-    m = (np.dot(np.dot(np.dot(np.dot(phiBurst(mec), interm1), invQAA),
-        interm2), uA)[0])
-    return m
-
-def length_cond_pdf(mec, t):
-    """
-    The distribution of burst length coditional on starting state.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-    t : float
-        Length.
-
-    Returns
-    -------
-    vec : array_like, shape (kA, 1)
-        Probability of seeing burst length t depending on starting state.
-    """
-
-    expQEEA = qml.expQt(mec.QEE, t)[:mec.kA, :mec.kA]
-    vec = np.dot(np.dot(expQEEA, -mec.QAA), endBurst(mec))
-    vec = vec.transpose()
-    return vec
-
-def length_no_single_openings_pdf_components(mec):
-    """
-    Calculate time constants and amplitudes for an ideal (no missed events)
-    exponential burst length probability density function for bursts with
-    two or more openings.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    eigs : ndarray, shape(k, 1)
-        Time constants.
-    w : ndarray, shape(k, 1)
-        Component amplitudes.
-    """
-
-    eigsA, AmatA = qml.eigs(-mec.QAA)
-    eigsE, AmatE = qml.eigs(-mec.QEE)
-    eigs = np.append(eigsE, eigsA)
-    A = np.append(AmatE[:,:mec.kA, :mec.kA], -AmatA, axis=0)
-    w = np.zeros(mec.kA + mec.kE)
-
-    endB = endBurst(mec)
-    start = phiBurst(mec)
-    norm = 1 - np.dot(start, endB)[0]
-
-    for i in range(mec.kA + mec.kE):
-        w[i] = np.dot(np.dot(np.dot(start,
-            A[i]), (-mec.QAA)), endB) / norm
-     
-    return eigs, w
+    interm = nplin.inv(I - np.dot(GAB, GBA))
+    mu = np.dot(np.dot(phiBurst(mec), interm), uA)[0]
+    return mu
 
 def openings_distr(mec, r):
     """
@@ -223,57 +524,6 @@ def openings_distr(mec, r):
     Pr = np.dot(np.dot(phiBurst(mec), interm), endBurst(mec))
     return Pr
 
-def openings_distr_components(mec):
-    """
-    Calculate coeficients for geometric ditribution P(r)- probability of
-    seeing r openings (Eq. 3.9 CH82):
-    P(r) = sum(W * rho^(r-1))
-    where w
-    wm = phiB * Am * endB (Eq. 3.10 CH82)
-    and rho- eigenvalues of GAB * GBA.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-    r : int
-        Number of openings per burst.
-
-    Returns
-    -------
-    rho : ndarray, shape (kA,)
-    w : ndarray, shape (kA,)
-    """
-
-    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    GG = np.dot(GAB, GBA)
-    rho, A = qml.eigs(GG)
-    w = np.dot(np.dot(phiBurst(mec), A), endBurst(mec)).transpose()[0]
-    return rho, w
-
-def openings_mean(mec):
-    """
-    Calculate the mean number of openings per burst (Eq. 3.7, CH82).
-    mu = phiB * (I - GAB * GBA)^(-1) * uA
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    mu : float
-        The mean number ofopenings per burst.
-    """
-
-    uA = np.ones((mec.kA,1))
-    I = np.eye(mec.kA)
-    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    interm = nplin.inv(I - np.dot(GAB, GBA))
-    mu = np.dot(np.dot(phiBurst(mec), interm), uA)[0]
-    return mu
-
 def openings_cond_distr_depend_on_start_state(mec, r):
     """
     The distribution of openings per burst coditional on starting state.
@@ -305,9 +555,12 @@ def openings_cond_distr_depend_on_start_state(mec, r):
     vecPr = vecPr.transpose()
     return vecPr
 
-def open_time_total_pdf_components(mec):
+@deprecated("Use 'SCBurst.mean_length'")
+def length_mean(mec):
     """
-    Eq. 3.23, CH82
+    Calculate the mean burst length (Eq. 3.19, CH82).
+    m = PhiB * (I - GAB * GBA)^(-1) * (-QAA^(-1)) * \
+        (I - QAB * (QBB^(-1)) * GBA) * uA
 
     Parameters
     ----------
@@ -316,23 +569,64 @@ def open_time_total_pdf_components(mec):
 
     Returns
     -------
-    eigs : ndarray, shape(k, 1)
-        Time constants.
-    w : ndarray, shape(k, 1)
-        Component amplitudes.
+    m : float
+        The mean burst length.
     """
 
-    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    VAA = mec.QAA + np.dot(mec.QAB, GBA)
-    eigs, A = qml.eigs(-VAA)
     uA = np.ones((mec.kA, 1))
+    I = np.eye(mec.kA)
+    invQAA = -1 * nplin.inv(mec.QAA)
+    invQBB = nplin.inv(mec.QBB)
+    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
+    interm1 = nplin.inv(I - np.dot(GAB, GBA))
+    interm2 = I - np.dot(np.dot(mec.QAB, invQBB), GBA)
+    m = (np.dot(np.dot(np.dot(np.dot(phiBurst(mec), interm1), invQAA),
+        interm2), uA)[0])
+    return m
 
-    w = np.zeros(mec.kA)
-    for i in range(mec.kA):
-        w[i] = np.dot(np.dot(np.dot(phiBurst(mec), A[i]), (-VAA)), uA)[0]  # [0] at the end needed due to NumPy 1.25 deprecation
+def length_pdf(mec, t):
+    """
+    Probability density function of the burst length (Eq. 3.17, CH82).
+    f(t) = phiB * [PEE(t)]AA * (-QAA) * eB, where PEE(t) = exp(QEE * t)
 
-    return eigs, w
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
 
+    Returns
+    -------
+    f : float
+    """
+
+    expQEEA = qml.expQt(mec.QEE, t)[:mec.kA, :mec.kA]
+    f = np.dot(np.dot(np.dot(phiBurst(mec), expQEEA), -mec.QAA),
+        endBurst(mec))
+    return f
+
+def length_cond_pdf(mec, t):
+    """
+    The distribution of burst length coditional on starting state.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    t : float
+        Length.
+
+    Returns
+    -------
+    vec : array_like, shape (kA, 1)
+        Probability of seeing burst length t depending on starting state.
+    """
+
+    expQEEA = qml.expQt(mec.QEE, t)[:mec.kA, :mec.kA]
+    vec = np.dot(np.dot(expQEEA, -mec.QAA), endBurst(mec))
+    vec = vec.transpose()
+    return vec
+
+@deprecated("Use 'SCBurst.mean_open_time'")
 def open_time_mean(mec):
     """
     Calculate the mean total open time per burst (Eq. 3.26, CH82).
@@ -354,10 +648,10 @@ def open_time_mean(mec):
     m = np.dot(np.dot(phiBurst(mec), -nplin.inv(VAA)), uA)[0]
     return m
 
-def shut_times_inside_burst_pdf_components(mec):
+def first_opening_length_pdf_components(mec):
     """
-    Calculate time constants and amplitudes for a PDF of all gaps within
-    bursts (Eq. 3.75, CH82).
+    Calculate time constants and amplitudes for an ideal (no missed events)
+    pdf of first opening in a burst with 2 or more openings.
 
     Parameters
     ----------
@@ -373,21 +667,45 @@ def shut_times_inside_burst_pdf_components(mec):
     """
 
     uA = np.ones((mec.kA, 1))
-    eigs, A = qml.eigs(-mec.QBB)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-mec.QAA)
     GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    interm = nplin.inv(np.eye(mec.kA) - np.dot(GAB, GBA))
-    norm = openings_mean(mec) - 1
+    GG = np.dot(GAB, GBA)
+    norm = np.dot(np.dot(phiBurst(mec), GG), uA)[0]
 
-    w = np.zeros(mec.kB)
-    for i in range(mec.kB):
-        w[i] = np.dot(np.dot(np.dot(np.dot(np.dot(np.dot(phiBurst(mec), interm),
-            GAB), A[i]), (-mec.QBB)), GBA), uA) / norm
+    w = np.zeros(mec.kA)
+    for i in range(mec.kA):
+        w[i] = np.dot(np.dot(np.dot(np.dot(phiBurst(mec),
+            A[i]), (-mec.QAA)), GG), uA) / norm
 
     return eigs, w
 
-def shut_times_between_burst_pdf_components(mec):
+def shut_time_total_mean(mec):
     """
-    Calculate time constants and amplitudes for a PDF of gaps between bursts.
+    Calculate the mean total shut time per burst (Eq. 3.41, CH82).
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+
+    Returns
+    -------
+    m : float
+        The mean total shut time per burst.
+    """
+
+    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
+    WBB = mec.QBB + np.dot(mec.QBA, GAB)
+    invW = - nplin.inv(WBB)
+    uA = np.ones((mec.kA, 1))
+    m = np.dot(np.dot(np.dot(np.dot(phiBurst(mec), GAB),
+            invW), (GBA)), uA)[0]
+    return m
+
+def shut_time_total_pdf_components_2more_openings(mec):
+    """
+    Calculate time constants and amplitudes for a PDF of total shut time 
+    per burst (Eq. 3.40, CH82) for bursts with at least 2 openings.
 
     Parameters
     ----------
@@ -402,22 +720,16 @@ def shut_times_between_burst_pdf_components(mec):
         Component amplitudes.
     """
 
-    uA = np.ones((mec.kA, 1))
-    eigsB, AmatB = qml.eigs(-mec.QBB)
-    eigsF, AmatF = qml.eigs(-mec.QFF)
-    pA = qml.pinf(mec.Q)[:mec.kA]
-    end = np.dot(-mec.QAA, endBurst(mec))
-    start = pA / np.dot(pA, end)
+    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
+    WBB = mec.QBB + np.dot(mec.QBA, GAB)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-WBB)
+    norm = 1 - np.dot(phiBurst(mec), endBurst(mec))[0]
 
-    rowB = np.dot(start, mec.QAB)
-    rowF = np.dot(start, mec.QAF)
-    colB = np.dot(mec.QBA, uA)
-    colF = np.dot(mec.QFA, uA)
-    wB = -np.dot(np.dot(rowB, AmatB), colB)
-    wF = np.dot(np.dot(rowF, AmatF), colF)
+    w = np.zeros(mec.kB)
+    for i in range(mec.kB):
+        w[i] = np.dot(np.dot(np.dot(np.dot(phiBurst(mec), GAB),
+            A[i]), (mec.QBA)), endBurst(mec)) / norm
 
-    w = np.append(wB, wF)
-    eigs = np.append(eigsB, eigsF)
     return eigs, w
 
 def shut_times_between_burst_mean(mec):
@@ -451,63 +763,10 @@ def shut_times_between_burst_mean(mec):
 
     return m
 
-def shut_time_total_pdf_components_2more_openings(mec):
-    """
-    Calculate time constants and amplitudes for a PDF of total shut time 
-    per burst (Eq. 3.40, CH82) for bursts with at least 2 openings.
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    eigs : ndarray, shape(k, 1)
-        Time constants.
-    w : ndarray, shape(k, 1)
-        Component amplitudes.
-    """
-
-    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    WBB = mec.QBB + np.dot(mec.QBA, GAB)
-    eigs, A = qml.eigs(-WBB)
-    norm = 1 - np.dot(phiBurst(mec), endBurst(mec))[0]
-
-    w = np.zeros(mec.kB)
-    for i in range(mec.kB):
-        w[i] = np.dot(np.dot(np.dot(np.dot(phiBurst(mec), GAB),
-            A[i]), (mec.QBA)), endBurst(mec)) / norm
-
-    return eigs, w
-
-def shut_time_total_mean(mec):
-    """
-    Calculate the mean total shut time per burst (Eq. 3.41, CH82).
-
-    Parameters
-    ----------
-    mec : dcpyps.Mechanism
-        The mechanism to be analysed.
-
-    Returns
-    -------
-    m : float
-        The mean total shut time per burst.
-    """
-
-    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    WBB = mec.QBB + np.dot(mec.QBA, GAB)
-    invW = - nplin.inv(WBB)
-    uA = np.ones((mec.kA, 1))
-    m = np.dot(np.dot(np.dot(np.dot(phiBurst(mec), GAB),
-            invW), (GBA)), uA)[0]
-    return m
-
-def first_opening_length_pdf_components(mec):
+def length_pdf_components(mec):
     """
     Calculate time constants and amplitudes for an ideal (no missed events)
-    pdf of first opening in a burst with 2 or more openings.
+    exponential burst length probability density function.
 
     Parameters
     ----------
@@ -522,18 +781,174 @@ def first_opening_length_pdf_components(mec):
         Component amplitudes.
     """
 
-    uA = np.ones((mec.kA, 1))
-    eigs, A = qml.eigs(-mec.QAA)
+    w = np.zeros(mec.kE)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-mec.QEE)
+    for i in range(mec.kE):
+        w[i] = np.dot(np.dot(np.dot(phiBurst(mec),
+            A[i][:mec.kA, :mec.kA]), (-mec.QAA)), endBurst(mec))[0]
+        # Due to deprecation warning needs [0] at the end
+        #DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
+        
+    return eigs, w
+
+def length_no_single_openings_pdf_components(mec):
+    """
+    Calculate time constants and amplitudes for an ideal (no missed events)
+    exponential burst length probability density function for bursts with
+    two or more openings.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+
+    Returns
+    -------
+    eigs : ndarray, shape(k, 1)
+        Time constants.
+    w : ndarray, shape(k, 1)
+        Component amplitudes.
+    """
+
+    eigsA, AmatA = qml.eigenvalues_and_spectral_matrices(-mec.QAA)
+    eigsE, AmatE = qml.eigenvalues_and_spectral_matrices(-mec.QEE)
+    eigs = np.append(eigsE, eigsA)
+    A = np.append(AmatE[:,:mec.kA, :mec.kA], -AmatA, axis=0)
+    w = np.zeros(mec.kA + mec.kE)
+
+    endB = endBurst(mec)
+    start = phiBurst(mec)
+    norm = 1 - np.dot(start, endB)[0]
+
+    for i in range(mec.kA + mec.kE):
+        w[i] = np.dot(np.dot(np.dot(start,
+            A[i]), (-mec.QAA)), endB) / norm
+     
+    return eigs, w
+
+def open_time_total_pdf_components(mec):
+    """
+    Eq. 3.23, CH82
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+
+    Returns
+    -------
+    eigs : ndarray, shape(k, 1)
+        Time constants.
+    w : ndarray, shape(k, 1)
+        Component amplitudes.
+    """
+
     GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
-    GG = np.dot(GAB, GBA)
-    norm = np.dot(np.dot(phiBurst(mec), GG), uA)[0]
+    VAA = mec.QAA + np.dot(mec.QAB, GBA)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-VAA)
+    uA = np.ones((mec.kA, 1))
 
     w = np.zeros(mec.kA)
     for i in range(mec.kA):
-        w[i] = np.dot(np.dot(np.dot(np.dot(phiBurst(mec),
-            A[i]), (-mec.QAA)), GG), uA) / norm
+        w[i] = np.dot(np.dot(np.dot(phiBurst(mec), A[i]), (-VAA)), uA)[0]  # [0] at the end needed due to NumPy 1.25 deprecation
 
     return eigs, w
+
+def shut_times_inside_burst_pdf_components(mec):
+    """
+    Calculate time constants and amplitudes for a PDF of all gaps within
+    bursts (Eq. 3.75, CH82).
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+
+    Returns
+    -------
+    eigs : ndarray, shape(k, 1)
+        Time constants.
+    w : ndarray, shape(k, 1)
+        Component amplitudes.
+    """
+
+    uA = np.ones((mec.kA, 1))
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-mec.QBB)
+    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
+    interm = nplin.inv(np.eye(mec.kA) - np.dot(GAB, GBA))
+    norm = openings_mean(mec) - 1
+
+    w = np.zeros(mec.kB)
+    for i in range(mec.kB):
+        w[i] = np.dot(np.dot(np.dot(np.dot(np.dot(np.dot(phiBurst(mec), interm),
+            GAB), A[i]), (-mec.QBB)), GBA), uA) / norm
+
+    return eigs, w
+
+def shut_times_between_burst_pdf_components(mec):
+    """
+    Calculate time constants and amplitudes for a PDF of gaps between bursts.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+
+    Returns
+    -------
+    eigs : ndarray, shape(k, 1)
+        Time constants.
+    w : ndarray, shape(k, 1)
+        Component amplitudes.
+    """
+
+    uA = np.ones((mec.kA, 1))
+    eigsB, AmatB = qml.eigenvalues_and_spectral_matrices(-mec.QBB)
+    eigsF, AmatF = qml.eigenvalues_and_spectral_matrices(-mec.QFF)
+    pA = qml.pinf(mec.Q)[:mec.kA]
+    end = np.dot(-mec.QAA, endBurst(mec))
+    start = pA / np.dot(pA, end)
+
+    rowB = np.dot(start, mec.QAB)
+    rowF = np.dot(start, mec.QAF)
+    colB = np.dot(mec.QBA, uA)
+    colF = np.dot(mec.QFA, uA)
+    wB = -np.dot(np.dot(rowB, AmatB), colB)
+    wF = np.dot(np.dot(rowF, AmatF), colF)
+
+    w = np.append(wB, wF)
+    eigs = np.append(eigsB, eigsF)
+    return eigs, w
+
+def openings_distr_components(mec):
+    """
+    Calculate coeficients for geometric ditribution P(r)- probability of
+    seeing r openings (Eq. 3.9 CH82):
+    P(r) = sum(W * rho^(r-1))
+    where w
+    wm = phiB * Am * endB (Eq. 3.10 CH82)
+    and rho- eigenvalues of GAB * GBA.
+
+    Parameters
+    ----------
+    mec : dcpyps.Mechanism
+        The mechanism to be analysed.
+    r : int
+        Number of openings per burst.
+
+    Returns
+    -------
+    rho : ndarray, shape (kA,)
+    w : ndarray, shape (kA,)
+    """
+
+    GAB, GBA = qml.iGs(mec.Q, mec.kA, mec.kB)
+    GG = np.dot(GAB, GBA)
+    rho, A = qml.eigenvalues_and_spectral_matrices(GG)
+    w = np.dot(np.dot(phiBurst(mec), A), endBurst(mec)).transpose()[0]
+    return rho, w
+
+
 
 def printout_pdfs(mec, output=sys.stdout):
     """

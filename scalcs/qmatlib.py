@@ -35,8 +35,7 @@ Phil Trans R Soc Lond A 354, 2555-2590.
 
 import numpy as np
 import numpy.linalg as nplin
-#import math
-#from warnings import deprecated
+from tabulate import tabulate
 from deprecated import deprecated
 
 def eigenvalues_and_spectral_matrices(Q, do_sorting=True):
@@ -59,7 +58,11 @@ def eigenvalues_and_spectral_matrices(Q, do_sorting=True):
     """
     eigvals, M = nplin.eig(Q)
     N = nplin.inv(M)
-    A = np.einsum('ij,kj->kij', M, N)  # Efficient matrix outer product
+    #A = np.einsum('ij,kj->kij', M, N)  # Efficient matrix outer product
+    k = N.shape[0]
+    A = np.zeros((k, k, k))
+    for i in range(k):
+        A[i] = np.dot(M[:, i].reshape(k, 1), N[i].reshape(1, k))
 
     if do_sorting:
         sorted_indices = eigvals.real.argsort()
@@ -107,6 +110,14 @@ def powQ(Q, n):
     Qn = np.sum(A * (eigvals**n).reshape(-1, 1, 1), axis=0)
     return Qn
 
+def pinf(Q):
+    """Calculate equilibrium occupancies."""
+    try:
+        pinf = pinf_extendQ(Q)
+    except np.linalg.LinAlgError:
+        pinf = pinf_reduceQ(Q)
+    return pinf
+
 def pinf_extendQ(Q):
     """
     Calculate equilibrium occupancies by adding a column of ones to Q matrix.
@@ -126,7 +137,6 @@ def pinf_extendQ(Q):
     pinf = np.dot(u.T, nplin.inv(np.dot(extended_Q_matrix, extended_Q_matrix.T)))[0]
     return pinf
 
-
 def pinf_reduceQ(Q):
     """
     Calculate equilibrium occupancies with the reduced Q-matrix method.
@@ -145,39 +155,235 @@ def pinf_reduceQ(Q):
     pinf = np.append(temp, 1 - np.sum(temp))
     return pinf
 
-
-def iGs(Q, kA, kB):
+def GXY(QXX, QXY):
     r"""
-    Calculate GBA and GAB matrices (Eq. 1.25, CH82).
-    Calculate also GFA and GAF if kF is given instead of kB.
+    Calculate G matrix (Eq. 1.25, CH82).
+    Calculate GAB, GBA, GFA, GAF, etc by replacing X and Y with required subsets (e.g. A, B, F).
 
     .. math::
 
-       \bs{G}_\cl{BA} &= -\bs{Q}_\cl{BB}^{-1} \bs{Q}_\cl{BA} \\
        \bs{G}_\cl{AB} &= -\bs{Q}_\cl{AA}^{-1} \bs{Q}_\cl{AB}
 
     Parameters
     ----------
-    Q : array_like, shape (k, k)
-    kA : int
-        A number of open states in kinetic scheme.
-    kB : int
-        A number of short lived shut states in kinetic scheme.
+    QXX, QXY : array_like, shape (kX, kX), (kX, kY)
+        Q-matrix subsets.
 
     Returns
     -------
-    GAB : ndarray, shape (kA, kB)
-    GBA : ndarray, shape (kB, kA)
+    GXY : ndarray, shape (kX, kY)
     """
 
-    kE = kA + kB
-    QBB = Q[kA:kE, kA:kE]
-    QBA = Q[kA:kE, 0:kA]
-    QAA = Q[0:kA, 0:kA]
-    QAB = Q[0:kA, kA:kE]
-    GAB = np.dot(nplin.inv(-1 * QAA), QAB)
-    GBA = np.dot(nplin.inv(-1 * QBB), QBA)
-    return GAB, GBA
+    return np.dot(nplin.inv(-QXX), QXY)
+
+class QMatrix:
+    '''
+    Transition rate matrix Q.
+    '''
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        """
+        Initialize the QMatrix instance.
+
+        Parameters:
+        Q (np.ndarray): Transition rate matrix.
+        kA, kB, kC, kD (int): State counts for different categories.
+        """
+        self.Q = Q
+        self.kA = kA
+        self.kB = kB
+        self.kC = kC
+        self.kD = kD
+        #TODO: sanity check- is self.k == self.num_states 
+        self.k = self.kA + self.kB + self.kC + self.kD  # all states
+        self.num_states = Q.shape[0]
+
+        self._set_state_counts()
+        self._set_submatrices()
+        self._set_unity_vectors()
+        self.pinf = pinf(self.Q)
+
+    def state_lifetimes(self):
+        return -1 / np.diag(self.Q)
+
+    def transition_probability(self):
+        """
+        Calculate the transition probabilities.
+
+        Returns:
+        np.ndarray: Transition probability matrix.
+        """
+        transition_probability = self.Q.copy()
+        np.fill_diagonal(transition_probability, 0)
+        row_sums = -np.diag(self.Q)  # Extract the diagonal elements (negative rates)
+        transition_probability = transition_probability / row_sums[:, np.newaxis]  # Broadcasting division along rows
+        return transition_probability
+
+    def transition_frequency(self):
+        """
+        Calculate the frequency of transitions.
+
+        Returns:
+        np.ndarray: Transition frequency matrix.
+        """
+        transition_frequency = self.Q.T * self.pinf
+        np.fill_diagonal(transition_frequency, 0)
+        return transition_frequency
+
+    def _set_state_counts(self):
+        """Calculate state counts for various subsets."""
+        self.kE = self.kA + self.kB  # burst states
+        self.kF = self.kB + self.kC  # intra and inter burst shut states
+        self.kG = self.kA + self.kB + self.kC  # cluster states
+        self.kH = self.kC + self.kD  # gap between clusters states
+        self.kI = self.kB + self.kC + self.kD  # all shut states
+        
+    def _set_submatrices(self):
+        """Extract submatrices from the main Q matrix."""
+        self.QFF = self.Q[self.kA:self.kG, self.kA:self.kG]
+        self.QFA = self.Q[self.kA:self.kG, :self.kA]
+        self.QAF = self.Q[:self.kA, self.kA:self.kG]
+        self.QAA = self.Q[:self.kA, :self.kA]
+        self.QEE = self.Q[:self.kE, :self.kE]
+        self.QBB = self.Q[self.kA:self.kE, self.kA:self.kE]
+        self.QAB = self.Q[:self.kA, self.kA:self.kE]
+        self.QBA = self.Q[self.kA:self.kE, :self.kA]
+        self.QBC = self.Q[self.kA:self.kE, self.kE:self.kG]
+        self.QAC = self.Q[:self.kA, self.kE:self.kG]
+        self.QCB = self.Q[self.kE:self.kG, self.kA:self.kE]
+        self.QCA = self.Q[self.kE:self.kG, :self.kA]
+        self.QII = self.Q[self.kA:self.k, self.kA:self.k]
+        self.QIA = self.Q[self.kA:self.k, :self.kA]
+        self.QAI = self.Q[:self.kA, self.kA:self.k]
+        self.QGG = self.Q[:self.kG, :self.kG]
+
+    def _set_unity_vectors(self):
+        """Initialize unity vectors."""
+        self.uk = np.ones((self.k, 1))
+        self.uA = np.ones((self.kA, 1))
+        self.uB = np.ones((self.kB, 1))
+        self.uC = np.ones((self.kC, 1))
+        self.uF = np.ones((self.kF, 1))
+        self.IA = np.eye(self.kA)
+
+    def P(self, subset='inf'):
+        """
+        Calculate the probability of being in specified subsets of states.
+
+        Parameters:
+        subset (str): Subset identifier.
+
+        Returns:
+        float or np.ndarray: Probability or pinf values.
+        """
+        subsets = {
+            'A': np.sum(self.pinf[        : self.kA]),
+            'B': np.sum(self.pinf[self.kA : self.kE]),
+            'C': np.sum(self.pinf[self.kE :        ]),
+            'F': np.sum(self.pinf[self.kA :        ]),
+            'B|F': np.sum(self.pinf[self.kA : self.kE]) / np.sum(self.pinf[self.kA : ]),
+            'C|F': np.sum(self.pinf[self.kE :        ]) / np.sum(self.pinf[self.kA : ])
+        }
+        return subsets.get(subset, self.pinf)
+
+    def phi(self, subset='A'):
+        """
+        Calculate the conditional probability distribution over a subset of states.
+
+        Parameters:
+        subset (str): Subset identifier.
+
+        Returns:
+        np.ndarray: Conditional probability distribution.
+        """
+        phi_dict = {
+            'A': self.pinf[        : self.kA] / np.sum(self.pinf[        : self.kA]),
+            'B': self.pinf[self.kA : self.kE] / np.sum(self.pinf[self.kA : self.kE]),
+            'F': self.pinf[self.kA : self.kG] / np.sum(self.pinf[self.kA : self.kG]),
+        }
+        return phi_dict.get(subset)
+    
+    def Popen(self):
+        """
+        Calculate equilibrium open probability, Popen.
+
+        Returns
+        -------
+        popen : float
+            Open probability. 
+        """
+
+        return np.sum(self.pinf[ : self.kA]) / np.sum(self.pinf)
+
+    def subset_mean_lifetime(self, state1, state2):
+        """
+        Calculate mean life time in a specified subset. Add all rates out of subset
+        to get total rate out. Skip rates within subset.
+
+        Parameters
+        ----------
+        state1,state2 : int
+            State numbers (counting origin 1)
+
+        Returns
+        -------
+        mean : float
+            Mean life time.
+        """
+        # Adjust state indices to zero-based indexing
+        state1 -= 1
+        state2 -= 1
+        
+        subset_pinf = self.pinf[state1 : state2+1]
+        pstot = np.sum(subset_pinf) # Total occupancy for the subset
+        if pstot == 0:
+            return 0.0
+        
+        subset_Q_pinf = np.dot([subset_pinf], self.Q[state1 : state2+1, :])
+        rate_out_of_subset = np.sum(subset_Q_pinf) - np.sum(subset_Q_pinf[ : , state1 : state2+1])
+        return pstot / rate_out_of_subset
+
+    def mean_latency_given_start_state(self, state):
+        """
+        Calculate mean latency to next opening (shutting), given starting in
+        specified shut (open) state.
+
+        mean latency given starting state = pF(0) * inv(-QFF) * uF
+
+        F- all shut states (change to A for mean latency to next shutting
+        calculation), p(0) = [0 0 0 ..1.. 0] - a row vector with 1 for state in
+        question and 0 for all other states.
+
+        Parameters
+        ----------
+        mec : instance of type Mechanism
+        state : int
+            State number (counting origin 1)
+
+        Returns
+        -------
+        mean : float
+            Mean latency.
+        """
+
+        # Determine if the state is in the A subset (shutting) or I subset (opening)
+        if state <= self.kA:
+            p_size = self.kA
+            adjusted_state = state - 1
+            Q_sub = self.QAA
+        else:
+            p_size = self.kI
+            adjusted_state = state - self.kA - 1
+            Q_sub = self.QII
+        
+        p = np.zeros(p_size)
+        p[adjusted_state] = 1      # p vector with 1 at the adjusted state index
+        invQ = nplin.inv(-Q_sub)   # The inverse of the negative Q submatrix
+        u = np.ones((p_size, 1))   # u vector of ones
+        return np.dot(np.dot(p, invQ), u)[0]   # Calculate mean latency
+
+
+### Functions to review
 
 def iGt(t, QAA, QAB):
     """
@@ -185,7 +391,7 @@ def iGt(t, QAA, QAB):
     PAA(t) = exp(QAA * t)      Eq. 1.16 in CH82
     """
 
-    GAB = np.dot(expQt(QAA, t), QAB)
+    GAB = np.dot(expQ(QAA, t), QAB)
     return GAB
 
 def eGs(GAF, GFA, kA, kF, expQFF):
@@ -342,7 +548,7 @@ def H(s, tres, QAA, QFF, QAF, QFA, kF):
     IF = np.eye(kF)
     XFF = s * IF - QFF
     invXFF = nplin.inv(XFF)
-    expXFF = expQt(-XFF, tres)
+    expXFF = expQ(-XFF, tres)
     H = QAA + np.dot(np.dot(np.dot(QAF, invXFF), IF - expXFF), QFA)
     return H
 
@@ -437,7 +643,7 @@ def dW(s, tres, QAF, QFF, QFA, kA, kF):
     IF = np.eye(kF)
     IA = np.eye(kA)
     XFF = s * IF - QFF
-    expXFF = expQt(-XFF, tres)
+    expXFF = expQ(-XFF, tres)
     SFF = IF - expXFF
     eGFAs = np.dot(nplin.inv(s * IF - QFF), QFA)
     w1 = np.dot(SFF, nplin.inv(s * IF - QFF)) - tres * (IF - SFF)
@@ -539,15 +745,20 @@ def AR(roots, tres, QAA, QFF, QAF, QFA, kA, kF):
     col1 = np.zeros((kA, kA))
     for i in range(kA):
         WA = W(roots[i], tres, QAA, QFF, QAF, QFA, kA, kF)
-        try:
-            row[i] = pinf(WA)
-        except:
-            row[i] = pinf1(WA)
         AW = np.transpose(WA)
-        try:
-            col1[i] = pinf(AW)
-        except:
-            col1[i] = pinf1(AW)
+
+        row[i] = pinf(WA)
+        col1[i] = pinf(AW)
+
+#        try:
+#            row[i] = pinf(WA)
+#        except:
+#            row[i] = pinf1(WA)
+        
+#        try:
+#            col1[i] = pinf(AW)
+#        except:
+#            col1[i] = pinf1(AW)
     col = col1.transpose()
 
     for i in range(kA):
@@ -939,22 +1150,56 @@ def pinf1(Q):
     pinf = np.dot(u.transpose(), nplin.inv((np.dot(S,S.transpose()))))[0]
     return pinf
     
-@deprecated("Use 'pinf_reduceQ'")
-def pinf(Q):
-    """
-    Calculate equilibrium occupancies with the reduced Q-matrix method.
+#@deprecated("Use 'pinf_reduceQ'")
+#def pinf(Q):
+#    """
+#    Calculate equilibrium occupancies with the reduced Q-matrix method.
+#
+#    Parameters
+#    ----------
+#    Q : array_like, shape (k, k)
+#
+#    Returns
+#    -------
+#    pinf : ndarray, shape (k1)
+#    """
+#
+#    R = (Q - Q[-1: , :])[:-1, :-1]
+#    r = Q[-1: , :-1]
+#    pinf = -np.dot(r, nplin.inv(R))
+#    pinf = np.append(pinf, 1 - np.sum(pinf))
+#    return pinf
+
+@deprecated("Use 'GAB'")
+def iGs(Q, kA, kB):
+    r"""
+    Calculate GBA and GAB matrices (Eq. 1.25, CH82).
+    Calculate also GFA and GAF if kF is given instead of kB.
+
+    .. math::
+
+       \bs{G}_\cl{BA} &= -\bs{Q}_\cl{BB}^{-1} \bs{Q}_\cl{BA} \\
+       \bs{G}_\cl{AB} &= -\bs{Q}_\cl{AA}^{-1} \bs{Q}_\cl{AB}
 
     Parameters
     ----------
     Q : array_like, shape (k, k)
+    kA : int
+        A number of open states in kinetic scheme.
+    kB : int
+        A number of short lived shut states in kinetic scheme.
 
     Returns
     -------
-    pinf : ndarray, shape (k1)
+    GAB : ndarray, shape (kA, kB)
+    GBA : ndarray, shape (kB, kA)
     """
 
-    R = (Q - Q[-1: , :])[:-1, :-1]
-    r = Q[-1: , :-1]
-    pinf = -np.dot(r, nplin.inv(R))
-    pinf = np.append(pinf, 1 - np.sum(pinf))
-    return pinf
+    kE = kA + kB
+    QBB = Q[kA:kE, kA:kE]
+    QBA = Q[kA:kE, 0:kA]
+    QAA = Q[0:kA, 0:kA]
+    QAB = Q[0:kA, kA:kE]
+    GAB = np.dot(nplin.inv(-1 * QAA), QAB)
+    GBA = np.dot(nplin.inv(-1 * QBB), QBA)
+    return GAB, GBA

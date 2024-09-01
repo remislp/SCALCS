@@ -167,7 +167,7 @@ def calc_jump (mec, reclen, step, cfunc, cargs):
 
     for i in range(1, t.shape[0]):
         mec.set_eff('c', c[i])
-        eigenvals, A = qml.eigs_sorted(mec.Q)
+        eigenvals, A = qml.eigenvalues_and_spectral_matrices(mec.Q)
         w = coefficient_calc(mec.k, A, pi)
         pi = P_t(step, eigenvals, w)
         Pt = np.append(Pt, [pi.copy()], axis=0)
@@ -362,10 +362,10 @@ def weighted_taus(mec, cmax, width, eff='c'):
     """
     
     mec.set_eff(eff, 0)
-    eigs0, A0 = qml.eigs_sorted(mec.Q)
+    eigs0, A0 = qml.eigenvalues_and_spectral_matrices(mec.Q)
     P0 = qml.pinf(mec.Q)
     mec.set_eff(eff, cmax)
-    eigsInf, Ainf = qml.eigs_sorted(mec.Q)
+    eigsInf, Ainf = qml.eigenvalues_and_spectral_matrices(mec.Q)
     w_on = coefficient_calc(mec.k, Ainf, P0)
     Pt = P_t(width, eigsInf, w_on)
     w_off = coefficient_calc(mec.k, A0, Pt)
@@ -399,14 +399,14 @@ def printout(mec, cmax, width, eff='c'):
 
     mec.set_eff(eff, 0)
     P0 = qml.pinf(mec.Q)
-    eigs0, A0 = qml.eigs_sorted(mec.Q)
+    eigs0, A0 = qml.eigenvalues_and_spectral_matrices(mec.Q)
     str_out += ('\nEquilibrium occupancies before t=0, at concentration = 0.0:\n')
     for i in range(mec.k):
         str_out += ('p00({0:d}) = {1:.5g}\n'.format(i+1, P0[i]))
 
     mec.set_eff(eff, cmax)
     Pinf = qml.pinf(mec.Q)
-    eigsInf, Ainf = qml.eigs_sorted(mec.Q)
+    eigsInf, Ainf = qml.eigenvalues_and_spectral_matrices(mec.Q)
     w_on = coefficient_calc(mec.k, Ainf, P0)
     str_out += ('\nEquilibrium occupancies at maximum concentration = {0:.5g} mM:\n'
         .format(cmax * 1000))

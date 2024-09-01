@@ -71,7 +71,7 @@ def ideal_dwell_time_pdf(t, QAA, phiA):
 
     kA = QAA.shape[0]
     uA = np.ones((kA, 1))
-    expQAA = qml.expQt(QAA, t)
+    expQAA = qml.expQ(QAA, t)
     f = np.dot(np.dot(np.dot(phiA, expQAA), -QAA), uA)
     return f
 
@@ -100,7 +100,8 @@ def ideal_dwell_time_pdf_components(QAA, phiA):
 
     kA = QAA.shape[0]
     w = np.zeros(kA)
-    eigs, A = qml.eigs_sorted(-QAA)
+    #TODO: change 'eigs_sorted' into 'eigenvalues_and_spectral_matrices'
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-QAA)
     uA = np.ones((kA, 1))
     #TODO: remove 'for'
     for i in range(kA):
@@ -115,101 +116,9 @@ def ideal_subset_time_pdf(Q, k1, k2, t):
     
     u = np.ones((k2 - k1 + 1, 1))
     phi, QSub = qml.phiSub(Q, k1, k2)
-    expQSub = qml.expQt(QSub, t)
+    expQSub = qml.expQ(QSub, t)
     f = np.dot(np.dot(np.dot(phi, expQSub), -QSub), u)
     return f
-
-def ideal_subset_mean_life_time(Q, state1, state2):
-    """
-    Calculate mean life time in a specified subset. Add all rates out of subset
-    to get total rate out. Skip rates within subset.
-
-    Parameters
-    ----------
-    mec : instance of type Mechanism
-    state1,state2 : int
-        State numbers (counting origin 1)
-
-    Returns
-    -------
-    mean : float
-        Mean life time.
-    """
-
-    k = Q.shape[0]
-    p = qml.pinf(Q)
-    # Total occupancy for subset.
-    pstot = np.sum(p[state1-1 : state2])
-
-    # Total rate out
-    if pstot == 0:
-        mean = 0.0
-    else:
-        s = 0.0
-        for i in range(state1-1, state2):
-            for j in range(k):
-                if (j < state1-1) or (j > state2 - 1):
-                    s += Q[i, j] * p[i] / pstot
-
-        mean = 1 / s
-    return mean
-
-def ideal_mean_latency_given_start_state(mec, state):
-    """
-    Calculate mean latency to next opening (shutting), given starting in
-    specified shut (open) state.
-
-    mean latency given starting state = pF(0) * inv(-QFF) * uF
-
-    F- all shut states (change to A for mean latency to next shutting
-    calculation), p(0) = [0 0 0 ..1.. 0] - a row vector with 1 for state in
-    question and 0 for all other states.
-
-    Parameters
-    ----------
-    mec : instance of type Mechanism
-    state : int
-        State number (counting origin 1)
-
-    Returns
-    -------
-    mean : float
-        Mean latency.
-    """
-
-    if state <= mec.kA:
-        # for calculating mean latency to next shutting
-        p = np.zeros((mec.kA))
-        p[state-1] = 1
-        u = np.ones((mec.kA, 1))
-        invQ = nplin.inv(-mec.QAA)
-    else:
-        # for calculating mean latency to next opening
-        p = np.zeros((mec.kI))
-        p[state-mec.kA-1] = 1
-        u = np.ones((mec.kI, 1))
-        invQ = nplin.inv(-mec.QII)
-
-    mean = np.dot(np.dot(p, invQ), u)[0]
-
-    return mean
-
-
-def ideal_popen(mec):
-    """
-    Calculate ideal equilibrium open probability, Popen.
-
-    Parameters
-    ----------
-    mec : instance of type Mechanism
-
-    Returns
-    -------
-    popen : float
-        Open probability. 
-    """
-    p = qml.pinf(mec.QGG)
-    return np.sum(p[ : mec.kA]) / np.sum(p)
 
 def exact_popen(mec, tres):
     """
@@ -462,8 +371,8 @@ def asymptotic_areas(tres, roots, QAA, QFF, QAF, QFA, kA, kF, GAF, GFA):
     areas : ndarray, shape (1, kA)
     """
 
-    expQFF = qml.expQt(QFF, tres)
-    expQAA = qml.expQt(QAA, tres)
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
     eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
     phiA = qml.phiHJC(eGAF, eGFA, kA)
@@ -564,9 +473,11 @@ def exact_mean_open_shut_time(mec, tres):
     mean : float
         Apparent mean open/shut time.
     """
-    GAF, GFA = qml.iGs(mec.Q, mec.kA, mec.kF)
-    expQFF = qml.expQt(mec.QFF, tres)
-    expQAA = qml.expQt(mec.QAA, tres)
+    GAF = qml.GXY(mec.QAA, mec.QAF) 
+    GFA = qml.GXY(mec.QFF, mec.QFA)
+    #GAF, GFA = qml.iGs(mec.Q, mec.kA, mec.kF)
+    expQFF = qml.expQ(mec.QFF, tres)
+    expQAA = qml.expQ(mec.QAA, tres)
     eGAF = qml.eGs(GAF, GFA, mec.kA, mec.kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, mec.kF, mec.kA, expQAA)
 
@@ -611,8 +522,8 @@ def exact_mean_time(tres, QAA, QFF, QAF, kA, kF, GAF, GFA):
         Apparent mean open/shut time.
     """
     
-    expQFF = qml.expQt(QFF, tres)
-    expQAA = qml.expQt(QAA, tres)
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
     eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
 
@@ -646,12 +557,13 @@ def exact_GAMAxx(mec, tres, open):
         Constants for the exact open/shut time pdf.
     """
 
-    expQFF = qml.expQt(mec.QII, tres)
-    expQAA = qml.expQt(mec.QAA, tres)
+    expQFF = qml.expQ(mec.QII, tres)
+    expQAA = qml.expQ(mec.QAA, tres)
     GAF, GFA = qml.iGs(mec.Q, mec.kA, mec.kI)
     eGAF = qml.eGs(GAF, GFA, mec.kA, mec.kI, expQFF)
     eGFA = qml.eGs(GFA, GAF, mec.kI, mec.kA, expQAA)
-    eigs, A = qml.eigs_sorted(-mec.Q)
+    #TODO: replace 'eigs_sorted' by 'eigenvalues_and_spectral_matrices'
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-mec.Q)
 
     if open:
         phi = qml.phiHJC(eGAF, eGFA, mec.kA)
@@ -760,15 +672,15 @@ def HJClik(theta, opts):
     mec.set_eff('c', conc)
 
     GAF, GFA = qml.iGs(mec.Q, mec.kA, mec.kF)
-    expQFF = qml.expQt(mec.QFF, tres)
-    expQAA = qml.expQt(mec.QAA, tres)
+    expQFF = qml.expQ(mec.QFF, tres)
+    expQAA = qml.expQ(mec.QAA, tres)
     eGAF = qml.eGs(GAF, GFA, mec.kA, mec.kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, mec.kF, mec.kA, expQAA)
     phiF = qml.phiHJC(eGFA, eGAF, mec.kF)
     startB = qml.phiHJC(eGAF, eGFA, mec.kA)
     endB = np.ones((mec.kF, 1))
 
-    eigen, A = qml.eigs(-mec.Q)
+    eigen, A = qml.eigenvalues_and_spectral_matrices(-mec.Q)
     AZ00, AZ10, AZ11 = qml.Zxx(mec.Q, eigen, A, mec.kA, mec.QFF,
         mec.QAF, mec.QFA, expQFF, True)
     Aroots = asymptotic_roots(tres,
@@ -930,7 +842,7 @@ def corr_decay_amplitude_A(phiA, QAA, XAA, kA):
     """
     
     varA = corr_variance_A(phiA, QAA, kA)
-    eigs, A = qml.eigs(XAA)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(XAA)
 
     uA = np.ones((kA))[:,np.newaxis]
     invQAA = -nplin.inv(QAA)
@@ -981,7 +893,7 @@ def adjacent_open_to_shut_range_mean(u1, u2, QAA, QAF, QFF, QFA, phiA):
     kA = QAA.shape[0]
     uA = np.ones((kA))[:,np.newaxis]
     invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
-    expQFFr = qml.expQt(QFF, u2) - qml.expQt(QFF, u1)
+    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
     col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
     row1 = np.dot(phiA, qml.Qpow(invQAA, 2))
     row2 = np.dot(phiA, invQAA)
@@ -1012,14 +924,14 @@ def HJC_dependency(top, tsh, tres, Q, QAA, QAF, QFF, QFA):
     kA, kF = QAA.shape[0], QFF.shape[0]
     uA = np.ones((kA))[:,np.newaxis]
     uF = np.ones((kF))[:,np.newaxis]
-    expQFF = qml.expQt(QFF, tres)
-    expQAA = qml.expQt(QAA, tres)
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
     GAF, GFA = qml.iGs(Q, kA, kF)
     eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
     phiA = qml.phiHJC(eGAF, eGFA, kA)
     phiF = qml.phiHJC(eGFA, eGAF, kF)
-    eigs, A = qml.eigs(-Q)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
     FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
     Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
     FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
@@ -1069,15 +981,15 @@ def HJC_adjacent_mean_open_to_shut_time_pdf(sht, tres, Q, QAA, QAF, QFF, QFA):
     kA, kF = QAA.shape[0], QFF.shape[0]
     uA = np.ones((kA))[:,np.newaxis]
     uF = np.ones((kF))[:,np.newaxis]
-    expQFF = qml.expQt(QFF, tres)
-    expQAA = qml.expQt(QAA, tres)
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
     GAF, GFA = qml.iGs(Q, kA, kF)
     eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
     phiA = qml.phiHJC(eGAF, eGFA, kA)
     phiF = qml.phiHJC(eGFA, eGAF, kF)
     DARS = qml.dARSdS(tres, QAA, QFF, GAF, GFA, expQFF, kA, kF)
-    eigs, A = qml.eigs(-Q)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
     FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
     Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
     FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
@@ -1124,10 +1036,10 @@ def adjacent_open_to_shut_range_pdf_components(u1, u2, QAA, QAF, QFF, QFA, phiA)
     kA = QAA.shape[0]
     uA = np.ones((kA))[:,np.newaxis]
     invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
-    expQFFr = qml.expQt(QFF, u2) - qml.expQt(QFF, u1)
+    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
     col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
     w = np.zeros(kA)
-    eigs, A = qml.eigs(-QAA)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-QAA)
     row = np.dot(phiA, invQAA)
     den = np.dot(row, col)[0, 0]
     #TODO: remove 'for'
@@ -1135,32 +1047,6 @@ def adjacent_open_to_shut_range_pdf_components(u1, u2, QAA, QAF, QFF, QFA, phiA)
         w[i] = np.dot(np.dot(phiA, A[i]), col) / den
     return eigs, w
 
-def simulate_intervals(mec, tres, state, opamp=5, nintmax=5000):
-    """
-
-    """
-    picum = np.cumsum(transition_probability(mec.Q), axis=1)
-    tmean = -1 / mec.Q.diagonal() # in s
-    ints = [random.expovariate(1 / tmean[state])]
-    amps = [opamp] if state < mec.kA else [0]
-    while len(ints) < nintmax:
-        state, t, a = next_state(state, picum, tmean, mec.kA, opamp)
-        if t < tres or a == amps[-1]:
-            ints[-1] += t
-        else:
-            ints.append(t)
-            amps.append(a)
-    return np.array(ints), np.array(amps), np.zeros((len(ints)), dtype='b')
-
-def next_state(present, picum, tmean, kA, opamp):
-    """
-    Get next state, its lifetime and amplitude.
-    """
-    possible = np.nonzero(picum[present] >= random.random())[0]
-    next = np.delete(possible, np.where(possible == present))[0]
-    t = random.expovariate(1 / tmean[next])
-    a = opamp if next < kA else 0
-    return next, t, a
 
 def printout_occupancies(mec, tres):
     """
@@ -1204,8 +1090,8 @@ def printout_occupancies(mec, tres):
             '\t{0:.5g}'.format(-1 / mec.Q[i,i] * 1000) +
             '\t{0:.5g}\n'.format(mean * 1000))
 
-    expQFF = qml.expQt(mec.QFF, tres)
-    expQAA = qml.expQt(mec.QAA, tres)
+    expQFF = qml.expQ(mec.QFF, tres)
+    expQAA = qml.expQ(mec.QAA, tres)
     GAF, GFA = qml.iGs(mec.Q, mec.kA, mec.kF)
     eGAF = qml.eGs(GAF, GFA, mec.kA, mec.kF, expQFF)
     eGFA = qml.eGs(GFA, GAF, mec.kF, mec.kA, expQAA)
@@ -1326,49 +1212,9 @@ def printout_distributions(mec, tres, eff='c'):
         '\t{0:.5g}'.format(gamma00[i]) +
         '\t{0:.5g}'.format(gamma10[i]) +
         '\t{0:.5g}\n'.format(gamma11[i]))
-
-    # Transition probabilities
-    pi = transition_probability(mec.Q)
-    str += ('\nProbability of transitions regardless of time:\n')
-    for i in range(mec.k):
-        str1 = '['
-        for j in range(mec.k):
-            str1 += '{0:.4g}\t'.format(pi[i,j])
-        str1 += ']\n'
-        str += str1
-
-    # Transition frequency
-    f = transition_frequency(mec.Q)
-    str += ('\nFrequency of transitions (per second):\n')
-    for i in range(mec.k):
-        str1 = '['
-        for j in range(mec.k):
-            str1 += '{0:.4g}\t'.format(f[i,j])
-        str1 += ']\n'
-        str += str1
         
     return str
 
-def transition_probability(Q):
-    """
-    """
-    k = Q.shape[0]
-    pi = Q.copy()
-    for i in range(k):
-        pi[i] = pi[i] / -Q[i,i]
-        pi[i,i] = 0
-    return pi
-
-def transition_frequency(Q):
-    """
-    """
-    k = Q.shape[0]
-    pinf = qml.pinf(Q)
-    f = Q.copy().transpose()
-    for i in range(k):
-        f[i] = f[i] * pinf
-        f[i,i] = 0
-    return f.transpose()
 
 def correlation_coefficient(cov, var1, var2):
     """
@@ -1537,7 +1383,7 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
     rXFF = nplin.matrix_rank(XFF)
     str += ('Rank of GFA * GAF = {0:d}\n'.format(rXFF))
     ncF = rXFF - 1
-    eigXFF, AXFF = qml.eigs(XFF)
+    eigXFF, AXFF = qml.eigenvalues_and_spectral_matrices(XFF)
     str += ('Eigenvalues of GFA * GAF:\n')
     str1 = ''
     for i in range(kI):
@@ -1547,7 +1393,7 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
     rXAA = np.ndim(XAA)
     str += ('Rank of GAF * GFA = {0:d}\n'.format(rXAA))
     ncA = rXAA - 1
-    eigXAA, AXAA = qml.eigs(XAA)
+    eigXAA, AXAA = qml.eigenvalues_and_spectral_matrices(XAA)
     str += ('Eigenvalues of GAF * GFA:\n')
     str1 = ''
     for i in range(kA):
@@ -1649,3 +1495,94 @@ def printout_adjacent(mec, t1, t2):
     str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
     return str
 
+#####################   DEPRECATED FUNCTIONS   #################################
+
+def ideal_popen(mec):
+    """
+    Calculate ideal equilibrium open probability, Popen.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    p = qml.pinf(mec.QGG)
+    return np.sum(p[ : mec.kA]) / np.sum(p)
+
+def ideal_subset_mean_life_time(Q, state1, state2):
+    """
+    Calculate mean life time in a specified subset. Add all rates out of subset
+    to get total rate out. Skip rates within subset.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+    state1,state2 : int
+        State numbers (counting origin 1)
+
+    Returns
+    -------
+    mean : float
+        Mean life time.
+    """
+
+    k = Q.shape[0]
+    p = qml.pinf(Q)
+    # Total occupancy for subset.
+    pstot = np.sum(p[state1-1 : state2])
+
+    # Total rate out
+    if pstot == 0:
+        mean = 0.0
+    else:
+        s = 0.0
+        for i in range(state1-1, state2):
+            for j in range(k):
+                if (j < state1-1) or (j > state2 - 1):
+                    s += Q[i, j] * p[i] / pstot
+
+        mean = 1 / s
+    return mean
+
+def ideal_mean_latency_given_start_state(mec, state):
+    """
+    Calculate mean latency to next opening (shutting), given starting in
+    specified shut (open) state.
+
+    mean latency given starting state = pF(0) * inv(-QFF) * uF
+
+    F- all shut states (change to A for mean latency to next shutting
+    calculation), p(0) = [0 0 0 ..1.. 0] - a row vector with 1 for state in
+    question and 0 for all other states.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+    state : int
+        State number (counting origin 1)
+
+    Returns
+    -------
+    mean : float
+        Mean latency.
+    """
+
+    if state <= mec.kA:
+        # for calculating mean latency to next shutting
+        p = np.zeros((mec.kA))
+        p[state-1] = 1
+        u = np.ones((mec.kA, 1))
+        invQ = nplin.inv(-mec.QAA)
+    else:
+        # for calculating mean latency to next opening
+        p = np.zeros((mec.kI))
+        p[state-mec.kA-1] = 1
+        u = np.ones((mec.kI, 1))
+        invQ = nplin.inv(-mec.QII)
+
+    mean = np.dot(np.dot(p, invQ), u)[0]
+    return mean

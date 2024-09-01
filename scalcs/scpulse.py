@@ -27,13 +27,13 @@ def first_latency_asymptotic_roots_areas(tres, mec0, mec1):
     roots = scl.asymptotic_roots(tres, mec1.QFF, mec1.QAA, mec1.QFA, mec1.QAF, mec1.kF, mec1.kA)
     R = qm.AR(roots, tres, mec1.QFF, mec1.QAA, mec1.QFA, mec1.QAF, mec1.kF, mec1.kA)
     uA = np.ones((mec1.kA, 1))
-    #areas = -1 / roots * np.einsum('ijk,jk->i', R, np.dot(mec1.QFA, qm.expQt(mec1.QAA, tres)).dot(uA))
+    #areas = -1 / roots * np.einsum('ijk,jk->i', R, np.dot(mec1.QFA, qm.expQ(mec1.QAA, tres)).dot(uA))
     # Initialize areas array
     areas = np.zeros(mec1.kF)
 
     # Calculate areas for each root
     for i in range(mec1.kF):
-        areas[i] = (-1 / roots[i]) * np.dot(phiF0, np.dot(np.dot(R[i], np.dot(mec1.QFA, qm.expQt(mec1.QAA, tres))), uA)).item()
+        areas[i] = (-1 / roots[i]) * np.dot(phiF0, np.dot(np.dot(R[i], np.dot(mec1.QFA, qm.expQ(mec1.QAA, tres))), uA)).item()
 
     return roots, areas
 
@@ -58,8 +58,8 @@ def first_latency_exact_GAMAxx(tres, mec, phi):
         Constants for the exact open/shut time pdf.
     """
 
-    expQAA = qm.expQt(mec.QAA, tres)
-    eigen, A = qm.eigs_sorted(-mec.Q)
+    expQAA = qm.expQ(mec.QAA, tres)
+    eigen, A = qm.eigenvalues_and_spectral_matrices(-mec.Q)
     Z00, Z10, Z11 = qm.Zxx(mec.Q, eigen, A, mec.kA, mec.QAA, mec.QFA, mec.QAF, expQAA, False)
 
     u = np.ones((mec.kA, 1))

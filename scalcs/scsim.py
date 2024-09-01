@@ -14,7 +14,7 @@ def simulate_intervals(mec, tres, state, opamp=5, nintmax=5000):
     # interval and transition counters
     nint, ntrns = 0, 0 
     # initial state
-    inst = state
+    inst = state  #[random.expovariate(1 / tmean[state])]
     # amplitude of initial state
     a = opamp if inst < mec.kA else 0
     # length of initial interval
