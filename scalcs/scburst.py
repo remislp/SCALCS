@@ -493,6 +493,7 @@ def openings_mean(mec):
     mu = np.dot(np.dot(phiBurst(mec), interm), uA)[0]
     return mu
 
+@deprecated("Use 'SCBurst.openings_distr'")
 def openings_distr(mec, r):
     """
     The distribution of openings per burst (Eq. 3.5, CH82).
@@ -524,6 +525,7 @@ def openings_distr(mec, r):
     Pr = np.dot(np.dot(phiBurst(mec), interm), endBurst(mec))
     return Pr
 
+@deprecated("Use 'SCBurst.openings_cond_distr_depend_on_start_stat'")
 def openings_cond_distr_depend_on_start_state(mec, r):
     """
     The distribution of openings per burst coditional on starting state.
@@ -584,6 +586,7 @@ def length_mean(mec):
         interm2), uA)[0])
     return m
 
+@deprecated("Use 'SCBurst.length_pdf_direct'")
 def length_pdf(mec, t):
     """
     Probability density function of the burst length (Eq. 3.17, CH82).
@@ -604,6 +607,7 @@ def length_pdf(mec, t):
         endBurst(mec))
     return f
 
+@deprecated("Use 'SCBurst.length_cond_pdf'")
 def length_cond_pdf(mec, t):
     """
     The distribution of burst length coditional on starting state.
@@ -648,6 +652,7 @@ def open_time_mean(mec):
     m = np.dot(np.dot(phiBurst(mec), -nplin.inv(VAA)), uA)[0]
     return m
 
+@deprecated("Use 'SCBurst.first_opening_length_pdf_components'")
 def first_opening_length_pdf_components(mec):
     """
     Calculate time constants and amplitudes for an ideal (no missed events)
@@ -679,6 +684,7 @@ def first_opening_length_pdf_components(mec):
 
     return eigs, w
 
+@deprecated("Use 'SCBurst.mean_shut_time'")
 def shut_time_total_mean(mec):
     """
     Calculate the mean total shut time per burst (Eq. 3.41, CH82).
@@ -702,6 +708,7 @@ def shut_time_total_mean(mec):
             invW), (GBA)), uA)[0]
     return m
 
+@deprecated("Use 'SCBurst.shut_time_total_pdf_components_2more_openings'")
 def shut_time_total_pdf_components_2more_openings(mec):
     """
     Calculate time constants and amplitudes for a PDF of total shut time 
@@ -732,6 +739,7 @@ def shut_time_total_pdf_components_2more_openings(mec):
 
     return eigs, w
 
+@deprecated("Use 'SCBurst.mean_shut_time_between_bursts'")
 def shut_times_between_burst_mean(mec):
     """
     Calculate the mean length of the gap between bursts (Eq. 3.86, CH82).
@@ -763,6 +771,7 @@ def shut_times_between_burst_mean(mec):
 
     return m
 
+@deprecated("Use 'SCBurst.length_pdf_components'")
 def length_pdf_components(mec):
     """
     Calculate time constants and amplitudes for an ideal (no missed events)
@@ -791,6 +800,7 @@ def length_pdf_components(mec):
         
     return eigs, w
 
+@deprecated("Use 'SCBurst.length_pdf_components'")
 def length_no_single_openings_pdf_components(mec):
     """
     Calculate time constants and amplitudes for an ideal (no missed events)
@@ -826,6 +836,7 @@ def length_no_single_openings_pdf_components(mec):
      
     return eigs, w
 
+@deprecated("Use 'SCBurst.total_open_time_pdf_components'")
 def open_time_total_pdf_components(mec):
     """
     Eq. 3.23, CH82
@@ -854,6 +865,7 @@ def open_time_total_pdf_components(mec):
 
     return eigs, w
 
+@deprecated("Use 'SCBurst.shut_times_inside_burst_pdf_components'")
 def shut_times_inside_burst_pdf_components(mec):
     """
     Calculate time constants and amplitudes for a PDF of all gaps within
@@ -885,6 +897,7 @@ def shut_times_inside_burst_pdf_components(mec):
 
     return eigs, w
 
+@deprecated("Use 'SCBurst.sgut_time_between_bursts_pdf_components'")
 def shut_times_between_burst_pdf_components(mec):
     """
     Calculate time constants and amplitudes for a PDF of gaps between bursts.
@@ -920,6 +933,7 @@ def shut_times_between_burst_pdf_components(mec):
     eigs = np.append(eigsB, eigsF)
     return eigs, w
 
+@deprecated("Use 'SCBurst.openings_distribution_components'")
 def openings_distr_components(mec):
     """
     Calculate coeficients for geometric ditribution P(r)- probability of
@@ -948,8 +962,7 @@ def openings_distr_components(mec):
     w = np.dot(np.dot(phiBurst(mec), A), endBurst(mec)).transpose()[0]
     return rho, w
 
-
-
+@deprecated("Use 'qmatprint.SCBurstPrints'")
 def printout_pdfs(mec, output=sys.stdout):
     """
     Output burst calculations into selected device (sys.stdout, printer, file,
