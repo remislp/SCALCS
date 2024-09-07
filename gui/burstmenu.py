@@ -5,7 +5,7 @@ try:
 except:
     raise ImportError("pyqt module is missing")
 
-from scalcs import scburst
+from scalcs.qmatprint import SCBurstPrints
 from scalcs import scplotlib as scpl
 from gui import myqtcommon
 
@@ -50,7 +50,12 @@ class BurstMenu(QMenu):
         if dialog.exec_():
             self.parent.conc = dialog.return_par()
         self.parent.mec.set_eff('c', self.parent.conc)
-        self.parent.log.write(scburst.printout_pdfs(self.parent.mec))
+
+        q_burst = SCBurstPrints(self.parent.mec.Q, 
+                                self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD)
+        self.parent.log.write(q_burst.print_all)
+        #self.parent.log.write(scburst.printout_pdfs(self.parent.mec))
+
         t, fbrst, mfbrst = scpl.burst_length_pdf(self.parent.mec, multicomp=True)
         self.parent.present_plot = np.vstack((t, fbrst, mfbrst))
         
