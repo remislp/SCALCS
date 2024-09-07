@@ -2,7 +2,7 @@
 Plotting utilities for single channel currents.
 """
 
-__author__="R.Lape, University College London"
+__author__="Remis Lape; remis.lp@gmail.com"
 __date__ ="$07-Dec-2010 23:01:09$"
 
 import math
@@ -12,6 +12,7 @@ from pylab import figure, semilogx, savefig
 from scalcs import qmatlib as qml
 from scalcs import scalcslib as scl
 from scalcs import scburst
+from scalcs.scburst import SCBurst
 from scalcs import popen
 from scalcs import pdfs
 from scalcs import cjumps

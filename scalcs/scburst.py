@@ -1,7 +1,7 @@
 """A collection of functions for single channel burst calculations.
 """
 
-__author__="R.Lape, University College London"
+__author__="Remis Lape; remis.lp@gmail.com"
 __date__ ="$07-Dec-2010 20:29:14$"
 
 import sys
@@ -143,7 +143,6 @@ class SCBurst(QMatrix):
             Probability of seeing r openings per burst depending on starting state.
         """
 
-        #GG = np.dot(self.GAB, self.GBA)
         if r == 1:
             interm = np.eye(self.kA)
         elif r == 2:
