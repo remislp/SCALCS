@@ -386,23 +386,24 @@ class CorrelationPrints(SCCorrelations):
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        self.varA, self.varF = self._variance(open=True), self._variance(open=False)
 
     @property
     def print_all(self):
-        return "\n*******************************************\nCORRELATIONS\n"
+        return (f"\n***** CORRELATIONS *****\n" +
+                self.print_ranks +
+                self.print_open_correlations +
+                self.print_shut_correlations +
+                self.print_open_shut_correlations)
 
     @property
     def print_ranks(self):
         """
         Print ranks and eigenvalues of the matrices.
         """
-        return (f"Ranks of GAF, GFA = {self.rank_GAF}, {self.rank_GFA}\n"
-                f"Rank of GFA * GAF = {self.rank_XFF}\n"
-                "Eigenvalues of GFA * GAF:\n" +
-                "\n".join([f"\t\t{e:.5g}" for e in self.eigs_XFF]) +
-                f"\nRank of GAF * GFA = {self.rank_XAA}\n"
-                "Eigenvalues of GAF * GFA:\n" +
-                "\n".join([f"\t\t{e:.5g}" for e in self.eigs_XAA]))
+        return (f"\n Ranks of GAF, GFA = {self.rank_GAF}, {self.rank_GFA}"
+                f"\n Rank of GFA * GAF = {self.rank_XFF}"
+                f"\n Rank of GAF * GFA = {self.rank_XAA}")
 
     def _format_correlation_info(self, var, var_n, n, correlation_limit, correlation_type):
         """
@@ -412,9 +413,9 @@ class CorrelationPrints(SCCorrelations):
         limiting_percentage = 100 * (sqrt(1 + 2 * correlation_limit / var) - 1)
         
         return (f"\nVariance of {correlation_type} time = {var:.5g}\n"
-                f"SD of all {correlation_type} times = {sqrt(var) * 1000:.5g} ms\n"
-                f"SD of means of {n} {correlation_type} times if uncorrelated = {sqrt(var / n) * 1000:.5g} ms\n"
-                f"Actual SD of mean = {sqrt(var_n / (n * n)) * 1000:.5g} ms\n"
+                f"SD of all {correlation_type} times = {sqrt(var) :.5g}\n"
+                f"SD of means of {n} {correlation_type} times if uncorrelated = {sqrt(var / n) :.5g}\n"
+                f"Actual SD of mean = {sqrt(var_n / (n * n)) :.5g}\n"
                 f"Percentage difference as result of correlation = {percentage_diff:.5g}\n"
                 f"Limiting value of percent difference for large n = {limiting_percentage:.5g}")
 
@@ -422,7 +423,7 @@ class CorrelationPrints(SCCorrelations):
         """
         Helper method to format correlation coefficients for open or shut times.
         """
-        correlation_str = ""
+        correlation_str = '\nCorrelation coefficients, r(k), for up to lag k = 5:'
         for i in range(n):
             cov = self._covariance(i + 1, open=open)
             corr_coeff = self._coefficient(cov, var, var)
@@ -434,14 +435,13 @@ class CorrelationPrints(SCCorrelations):
         """
         Print open-open time correlations.
         """
-        varA = self._variance(open=True)
+
         varA_n = self.variance_n(50, open=True)
         correlation_limit_A = self.correlation_limit(open=True)
 
-        open_str = '\n OPEN-OPEN TIME CORRELATIONS'
-        open_str += self._format_correlation_info(varA, varA_n, 50, correlation_limit_A, 'open')
-        open_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
-        open_str += self._format_correlation_coefficients(varA, 5, open=True)
+        open_str = '\n\n OPEN-OPEN TIME CORRELATIONS'
+        open_str += self._format_correlation_info(self.varA, varA_n, 50, correlation_limit_A, 'open')
+        open_str += self._format_correlation_coefficients(self.varA, 5, open=True)
         
         return open_str
 
@@ -450,14 +450,13 @@ class CorrelationPrints(SCCorrelations):
         """
         Print shut-shut time correlations.
         """
-        varF = self._variance(open=False)
+
         varF_n = self.variance_n(50, open=False)
         correlation_limit_F = self.correlation_limit(open=False)
 
-        shut_str = '\n SHUT-SHUT TIME CORRELATIONS'
-        shut_str += self._format_correlation_info(varF, varF_n, 50, correlation_limit_F, 'shut')
-        shut_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
-        shut_str += self._format_correlation_coefficients(varF, 5, open=False)
+        shut_str = '\n\n SHUT-SHUT TIME CORRELATIONS'
+        shut_str += self._format_correlation_info(self.varF, varF_n, 50, correlation_limit_F, 'shut')
+        shut_str += self._format_correlation_coefficients(self.varF, 5, open=False)
 
         return shut_str
 
@@ -466,12 +465,11 @@ class CorrelationPrints(SCCorrelations):
         """
         Print open-shut time correlations.
         """
-        varA, varF = self._variance(open=True), self._variance(open=False)
-        open_shut_str = '\n OPEN - SHUT TIME CORRELATIONS'
+        open_shut_str = '\n\n OPEN - SHUT TIME CORRELATIONS'
         open_shut_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
         
         for i in range(5):
             covAF = self.covariance_AF(i + 1)
-            open_shut_str += f"\nr({i+1}) = {self._coefficient(covAF, varA, varF):.5g}"
+            open_shut_str += f"\nr({i+1}) = {self._coefficient(covAF, self.varA, self.varF):.5g}"
         
         return open_shut_str

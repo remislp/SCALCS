@@ -24,35 +24,35 @@ class TestSCBurst(unittest.TestCase):
         cls.expected_mean_shut_time_between_bursts = 3790.43
 
     def test_start_burst(self):
-        result = self.q_burst.start_burst()
+        result = self.q_burst.start_burst
         np.testing.assert_almost_equal(result, self.expected_start_burst, decimal=5)
 
     def test_end_burst(self):
-        result = self.q_burst.end_burst()
+        result = self.q_burst.end_burst
         np.testing.assert_almost_equal(result, self.expected_end_burst, decimal=5)
 
     def test_mean_number_of_openings(self):
-        result = self.q_burst.mean_number_of_openings()
+        result = self.q_burst.mean_number_of_openings
         self.assertAlmostEqual(result, self.expected_mean_number_of_openings, places=5)
 
     def test_mean_burst_length(self):
-        result = 1000 * self.q_burst.mean_length()
+        result = 1000 * self.q_burst.mean_length
         self.assertAlmostEqual(result, self.expected_mean_burst_length, places=4)
 
     def test_mean_open_time(self):
-        result = 1000 * self.q_burst.mean_open_time()
+        result = 1000 * self.q_burst.mean_open_time
         self.assertAlmostEqual(result, self.expected_mean_open_time, places=4)
 
     def test_mean_shut_time(self):
-        result = 1000 * self.q_burst.mean_shut_time()
+        result = 1000 * self.q_burst.mean_shut_time
         self.assertAlmostEqual(result, self.expected_mean_shut_time, places=5)
 
     def test_mean_shut_time_excl_single(self):
-        result = 1000 * self.q_burst.mean_shut_time() / self.q_burst.probability_more_than_one_opening()
+        result = 1000 * self.q_burst.mean_shut_time / self.q_burst.probability_more_than_one_opening
         self.assertAlmostEqual(result, self.expected_mean_shut_time_excl_single, places=5)
 
     def test_mean_shut_time_between_bursts(self):
-        result = 1000 * self.q_burst.mean_shut_times_between_bursts()
+        result = 1000 * self.q_burst.mean_shut_times_between_bursts
         self.assertAlmostEqual(result, self.expected_mean_shut_time_between_bursts, places=2)
 
 if __name__ == '__main__':

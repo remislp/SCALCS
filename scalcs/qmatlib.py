@@ -231,6 +231,31 @@ class QMatrix:
         self._set_unity_vectors()
         self.pinf = pinf(self.Q)
 
+    @property
+    def phiA(self):
+        """
+        Calculate initial vector for openings.
+
+        Returns
+        -------
+        phi : ndarray, shape (kA)
+        """
+
+        nom = np.dot(self.pinf[self.kA : ], self.QIA)
+        denom = np.dot(nom, self.uA)
+        return nom / denom
+    
+    @property
+    def phiF(self):
+        """
+        Calculate inital vector for shuttings.
+
+        Returns
+        -------
+        phi : ndarray, shape (kF)
+        """
+        return np.dot(self.phiA, self.GAF)
+
     def state_lifetimes(self):
         return -1 / np.diag(self.Q)
 
