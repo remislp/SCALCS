@@ -1,9 +1,13 @@
+import sys
 from math import sqrt
 import numpy as np
 from tabulate import tabulate
+from numpy import linalg as nplin
 
+from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
+from scalcs.scalcslib import SCDwells, SCCorrelations
 
 class QMatrixPrints(QMatrix):
     '''
@@ -229,6 +233,35 @@ def expPDF_printout(eigs, amps, title):
         
     return info_str
 
+def expPDF_asymptotic_printout(eigs, areas, tres, title):
+    """
+    """
+
+    info_str = '\n'+title+ '\n'
+    areast0 = areas * np.exp(tres * eigs)
+    areast0 /= np.sum(areast0)
+    table = []
+    for i in range(len(eigs)):
+        table.append([i+1, eigs[i], 1000 / eigs[i], 100 * areas[i], 100 * areast0[i]])
+    info_str += tabulate(table, 
+                              headers=['Term', 'Rate (1/sec)', 'tau (ms)', 'Area (%)', 'Area renormalised for t=0 to inf'], 
+                              tablefmt='orgtbl')       
+    return info_str
+
+def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
+    """
+    """
+
+    info_str = '\n'+title+ '\n'
+    table = []
+    for i in range(len(eigs)):
+        table.append([eigs[i], gamma00[i], gamma10[i], gamma11[i]])
+    info_str += tabulate(table, 
+                              headers=['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)'], 
+                              tablefmt='orgtbl')       
+    return info_str
+
+
 def geometricPDF_printout(rho, w, title):
     """
     """
@@ -252,3 +285,193 @@ def geometricPDF_printout(rho, w, title):
         '\n\tSD =\t {0:.5g}'.format(sd) +
         '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
     return info_str
+
+
+class SCDwellsPrints(SCDwells):
+    '''
+    Print Q-Matrix stuff.
+    '''
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        SCDwells.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+
+    @property
+    def print_all(self):
+        """
+        Output burst calculations.
+        """
+
+        all_str = ('\n*******************************************\n' +
+        'CALCULATED SINGLE CHANNEL IDEAL DWELL MEANS, PDFS, ETC....\n')
+
+        return all_str
+
+    @property
+    def print_initial_vectors(self):
+        initial_str = ('\nInitial vector for ideal openings =\n')
+        #phiAi = qml.phiA(mec)
+        for i in range(self.kA):
+            initial_str += ('\t{0:.5g}'.format(self.phiA[i]))
+        initial_str += ('\nInitial vector for ideal shuttings =\n')
+        #phiFi = qml.phiF(mec)
+        for i in range(self.kF):
+            initial_str += ('\t{0:.5g}'.format(self.phiF[i]))
+        initial_str += '\n'
+        return initial_str
+
+    @property
+    def print_initial_HJC_vectors(self):
+        initial_str = ('\nInitial vector for HJC openings (tres={0:.0f} us) =\n'.format(1e6 * self.tres))
+        for i in range(self.kA):
+            initial_str += ('\t{0:.5g}'.format(self.HJCphiA[i]))
+        initial_str += ('\nInitial vector for HJC shuttings =\n')
+        for i in range(self.kF):
+            initial_str += ('\t{0:.5g}'.format(self.HJCphiF[i]))
+        initial_str += '\n'
+        return initial_str
+
+    @property
+    def print_open_time_pdf(self):
+        e, w = self.ideal_open_time_pdf_components()
+        info_str = (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
+        return info_str
+
+    @property
+    def print_open_time_pdf(self):
+        e, w = self.ideal_open_time_pdf_components()
+        info_str = (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
+        return info_str
+    
+    @property
+    def print_HJC_asymptotic_open_time_pdf(self):
+
+        e, a = self.HJC_asymptotic_open_time_pdf_components()
+        info_str = expPDF_asymptotic_printout(e, a, self.tres, '\nASYMPTOTIC OPEN TIME DISTRIBUTION')
+        info_str += ('\nApparent mean open time (ms) = {0:.5g}\n'.format(self.apparent_mean_open_time * 1000))
+        return info_str
+
+    @property
+    def print_HJC_exact_open_time_pdf(self):
+
+        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=True)
+        info_str = expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, '\nEXACT OPEN TIME DISTRIBUTION')
+        return info_str
+    
+    @property
+    def print_HJC_exact_shut_time_pdf(self):
+
+        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=False)
+        info_str = expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, '\nEXACT SHUT TIME DISTRIBUTION')
+        return info_str
+
+    @property
+    def print_shut_time_pdf(self):
+        e, w = self.ideal_shut_time_pdf_components()
+        info_str = (expPDF_printout(e, w, '\nIdeal shut time, unconditional'))
+        return info_str
+
+    @property
+    def print_HJC_asymptotic_shut_time_pdf(self):
+
+        e, a = self.HJC_asymptotic_shut_time_pdf_components()
+        info_str = expPDF_asymptotic_printout(e, a, self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
+        info_str += ('\nApparent mean shut time (ms) = {0:.5g}\n'.format(self.apparent_mean_shut_time * 1000))
+        return info_str
+
+
+class CorrelationPrints(SCCorrelations):
+    """
+    Prints various correlation and Q-matrix calculations.
+    """
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+
+    @property
+    def print_all(self):
+        return "\n*******************************************\nCORRELATIONS\n"
+
+    @property
+    def print_ranks(self):
+        """
+        Print ranks and eigenvalues of the matrices.
+        """
+        return (f"Ranks of GAF, GFA = {self.rank_GAF}, {self.rank_GFA}\n"
+                f"Rank of GFA * GAF = {self.rank_XFF}\n"
+                "Eigenvalues of GFA * GAF:\n" +
+                "\n".join([f"\t\t{e:.5g}" for e in self.eigs_XFF]) +
+                f"\nRank of GAF * GFA = {self.rank_XAA}\n"
+                "Eigenvalues of GAF * GFA:\n" +
+                "\n".join([f"\t\t{e:.5g}" for e in self.eigs_XAA]))
+
+    def _format_correlation_info(self, var, var_n, n, correlation_limit, correlation_type):
+        """
+        Helper method to format correlation information for open and shut times.
+        """
+        percentage_diff = 100 * (sqrt(var_n / (n * n)) - sqrt(var / n)) / sqrt(var / n)
+        limiting_percentage = 100 * (sqrt(1 + 2 * correlation_limit / var) - 1)
+        
+        return (f"\nVariance of {correlation_type} time = {var:.5g}\n"
+                f"SD of all {correlation_type} times = {sqrt(var) * 1000:.5g} ms\n"
+                f"SD of means of {n} {correlation_type} times if uncorrelated = {sqrt(var / n) * 1000:.5g} ms\n"
+                f"Actual SD of mean = {sqrt(var_n / (n * n)) * 1000:.5g} ms\n"
+                f"Percentage difference as result of correlation = {percentage_diff:.5g}\n"
+                f"Limiting value of percent difference for large n = {limiting_percentage:.5g}")
+
+    def _format_correlation_coefficients(self, var, n, open=True):
+        """
+        Helper method to format correlation coefficients for open or shut times.
+        """
+        correlation_str = ""
+        for i in range(n):
+            cov = self._covariance(i + 1, open=open)
+            corr_coeff = self._coefficient(cov, var, var)
+            correlation_str += f"\nr({i+1}) = {corr_coeff:.5g}"
+        return correlation_str
+
+    @property
+    def print_open_correlations(self):
+        """
+        Print open-open time correlations.
+        """
+        varA = self._variance(open=True)
+        varA_n = self.variance_n(50, open=True)
+        correlation_limit_A = self.correlation_limit(open=True)
+
+        open_str = '\n OPEN-OPEN TIME CORRELATIONS'
+        open_str += self._format_correlation_info(varA, varA_n, 50, correlation_limit_A, 'open')
+        open_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
+        open_str += self._format_correlation_coefficients(varA, 5, open=True)
+        
+        return open_str
+
+    @property
+    def print_shut_correlations(self):
+        """
+        Print shut-shut time correlations.
+        """
+        varF = self._variance(open=False)
+        varF_n = self.variance_n(50, open=False)
+        correlation_limit_F = self.correlation_limit(open=False)
+
+        shut_str = '\n SHUT-SHUT TIME CORRELATIONS'
+        shut_str += self._format_correlation_info(varF, varF_n, 50, correlation_limit_F, 'shut')
+        shut_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
+        shut_str += self._format_correlation_coefficients(varF, 5, open=False)
+
+        return shut_str
+
+    @property
+    def print_open_shut_correlations(self):
+        """
+        Print open-shut time correlations.
+        """
+        varA, varF = self._variance(open=True), self._variance(open=False)
+        open_shut_str = '\n OPEN - SHUT TIME CORRELATIONS'
+        open_shut_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
+        
+        for i in range(5):
+            covAF = self.covariance_AF(i + 1)
+            open_shut_str += f"\nr({i+1}) = {self._coefficient(covAF, varA, varF):.5g}"
+        
+        return open_shut_str
