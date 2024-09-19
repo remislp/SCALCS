@@ -76,8 +76,6 @@ class SCDwells(QMatrix):
         self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
         self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
 
-    
-
     def ideal_open_time_pdf_components(self):
         """
         Calculate time constants and areas for an ideal (no missed events)
@@ -115,7 +113,11 @@ class SCDwells(QMatrix):
         for i in range(self.kF):
             w[i] = np.dot(np.dot(np.dot(self.phiF, A[i]), (-self.QFF)), self.uF)[0]
         return eigs, w
-    
+
+    @property
+    def apparentPopen(self): #eGAF, eGFA, kA):
+         return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
+
     @property
     def HJCphiA(self): #eGAF, eGFA, kA):
         """
@@ -721,7 +723,7 @@ class SCCorrelations(QMatrix):
         u = self.uA if open else self.uF
         phi = self.phiAr if open else self.phiFr
         invQxx = -nplin.inv(self.QAA) if open else -nplin.inv(self.QFF)
-        Xn = qml.Qpow(self.XAA, lag) if open else qml.Qpow(self.XFF, lag)
+        Xn = qml.powQ(self.XAA, lag) if open else qml.powQ(self.XFF, lag)
 
         M2 = Xn - u @ phi
         row = phi @ invQxx
@@ -749,7 +751,7 @@ class SCCorrelations(QMatrix):
         """
         uA, uF = self.uA, self.uF
         phiA = self.phiAr
-        MAF = qml.Qpow(self.XAA, lag - 1) - uA @ phiA
+        MAF = qml.powQ(self.XAA, lag - 1) - uA @ phiA
 
         row = phiA @ -nplin.inv(self.QAA)
         col = (self.GAF @ -nplin.inv(self.QFF)) @ uF
@@ -814,23 +816,6 @@ def ideal_subset_time_pdf(Q, k1, k2, t):
     f = np.dot(np.dot(np.dot(phi, expQSub), -QSub), u)
     return f
 
-def exact_popen(mec, tres):
-    """
-    Calculate equilibrium open probability, Popen, corrected for missed events.
-
-    Parameters
-    ----------
-    mec : instance of type Mechanism
-    tres : float
-        Time resolution.
-
-    Returns
-    -------
-    popen : float
-        Open probability. 
-    """
-    hmopen, hmshut = exact_mean_open_shut_time(mec, tres)
-    return (hmopen / (hmopen + hmshut))
 
 
 def asymptotic_pdf(t, tres, tau, area):
@@ -1862,6 +1847,26 @@ def exact_GAMAxx(mec, tres, open):
     gama11 = (np.dot(np.dot(phi, Z11), u)).T[0]
 
     return eigs, gama00, gama10, gama11
+
+@deprecated("Use 'scalcs.popen'")
+def exact_popen(mec, tres):
+    """
+    Calculate equilibrium open probability, Popen, corrected for missed events.
+
+    Parameters
+    ----------
+    mec : instance of type Mechanism
+    tres : float
+        Time resolution.
+
+    Returns
+    -------
+    popen : float
+        Open probability. 
+    """
+    hmopen, hmshut = exact_mean_open_shut_time(mec, tres)
+    return (hmopen / (hmopen + hmshut))
+
 
 
 @deprecated("Use 'qmatprint.SCDwellsPrints'")

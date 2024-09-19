@@ -9,8 +9,13 @@ from scipy import optimize
 from scalcs import qmatlib as qml
 from scalcs import scalcslib as scl
 
-class PopenCurve:
+from scalcs.scalcslib import SCDwells
+
+class PopenCurve():
     """Container for entire Popen curve"""
+
+    #def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
+    #    super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
     def __init__(self, mec=None, tres=0.0):
         self.mec = mec
         self.tres = tres
@@ -90,7 +95,7 @@ class PopenCurve:
         b = (s2 - s1) / (c50[i+1] - c50[i])
         return s1 + b * (self.EC50 - c50[i])
 
-def Popen(mec, tres, conc=0, eff='c'):
+def Popen(mec, tres=0.0, conc=0.0, eff='c'):
     """
     Calculate equilibrium open probability (Popen) and correct for
     unresolved blockages in case of presence of fast pore blocker.
@@ -110,10 +115,14 @@ def Popen(mec, tres, conc=0, eff='c'):
         Open probability value at a given concentration.
     """
     mec.set_eff(eff, conc)
+    #q_dwells = SCDwells(mec.Q, mec.kA, mec.kB, mec.kC, mec.kD, tres=tres)
+    #q_dwells.tres = tres
     if tres == 0:
         p = qml.pinf(mec.QGG)
         popen = np.sum(p[:mec.kA]) / np.sum(p)
+        #popen = q_dwells.Popen()
     else:
+        #popen = q_dwells.apparent_mean_open_time / (q_dwells.apparent_mean_open_time + q_dwells.apparent_mean_shut_time)
         hmopen, hmshut = scl.exact_mean_open_shut_time(mec, tres)
         popen = (hmopen / (hmopen + hmshut))
     if mec.fastblock:

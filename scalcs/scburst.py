@@ -16,24 +16,26 @@ from scalcs import pdfs
 from scalcs.qmatlib import QMatrix
 
 class SCBurst(QMatrix):
-    '''
-    Print Q-Matrix stuff.
-    '''
+    """
+    SCBurst calculates various burst-related quantities from a Q-matrix based on methods in Colquhoun & Hawkes (1982).
+    """
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
-        # Initialize the QMatrix instance.
-        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
-        self.GAB = qml.GXY(self.QAA, self.QAB) 
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        self.GAB = qml.GXY(self.QAA, self.QAB)
         self.GBA = qml.GXY(self.QBB, self.QBA)
-        self.GABAG = np.dot(self.GAB, self.GBA)
-        self.probability_of_ending = (self.IA - self.GABAG)
-        self.GAF = qml.GXY(self.QAA, self.QAF) 
+        #self.GABAG = np.dot(self.GAB, self.GBA)
+        self.GABAG = self.GAB @ self.GBA
+        self.probability_of_ending = self.IA - self.GABAG
+        self.GAF = qml.GXY(self.QAA, self.QAF)
         self.GFA = qml.GXY(self.QFF, self.QFA)
         self.invQAA = nplin.inv(self.QAA)
         self.invQBB = nplin.inv(self.QBB)
         self.invQFF = nplin.inv(self.QFF)
-        self.pinfC = self.pinf[self.kE : self.kG]
-        self.pinfA = self.pinf[ : self.kA]
+        self.pinfC = self.pinf[self.kE:self.kG]
+        self.pinfA = self.pinf[:self.kA]
+
+        self.WBB = self.QBB + self.QBA @ self.GAB
 
     @property
     def start_burst(self):
@@ -46,8 +48,8 @@ class SCBurst(QMatrix):
         phiB : array_like, shape (1, kA)
         """
 
-        nom = np.dot(self.pinfC, (np.dot(self.QCB, self.GBA) + self.QCA))        
-        return nom / np.dot(nom, self.uA)
+        nom = self.pinfC @ (self.QCB @ self.GBA + self.QCA)
+        return nom / (nom @ self.uA)
     
     @property
     def end_burst(self):
@@ -63,8 +65,7 @@ class SCBurst(QMatrix):
         eB : array_like, shape (kA, 1)
         """
 
-        #return np.dot((self.IA - np.dot(self.GAB, self.GBA)), self.uA)
-        return np.dot(self.probability_of_ending, self.uA)
+        return self.probability_of_ending @ self.uA
 
     @property
     def mean_number_of_openings(self):
@@ -78,7 +79,8 @@ class SCBurst(QMatrix):
             The mean number ofopenings per burst.
         """
 
-        return np.dot(np.dot(self.start_burst, nplin.inv(self.probability_of_ending)), self.uA)[0]
+        #return np.dot(np.dot(self.start_burst, nplin.inv(self.probability_of_ending)), self.uA)[0]
+        return (self.start_burst @ nplin.inv(self.probability_of_ending) @ self.uA)[0]
 
 
     def openings_distr_components(self):
@@ -96,7 +98,6 @@ class SCBurst(QMatrix):
         w : ndarray, shape (kA,)
         """
 
-        #GG = np.dot(self.GAB, self.GBA)
         rho, A = qml.eigenvalues_and_spectral_matrices(self.GABAG)
         w = np.dot(np.dot(self.start_burst, A), self.end_burst).transpose()[0]
         return rho, w
@@ -117,16 +118,11 @@ class SCBurst(QMatrix):
             Probability of seeing r openings per burst.
         """
 
-        #GG = np.dot(self.GAB, self.GBA)
         if r == 1:
-            interm = np.eye(self.kA)
-        elif r == 2:
-            interm = self.GABAG
+            interm = self.IA
         else:
-            interm = self.GABAG
-            for i in range(2, r):
-                interm = np.dot(interm, self.GABAG)
-        return np.dot(np.dot(self.start_burst, interm), self.end_burst)
+            interm = np.linalg.matrix_power(self.GABAG, r - 1)
+        return self.start_burst @ interm @ self.end_burst
 
     def openings_cond_distr_depend_on_start_state(self, r):
         """
@@ -142,17 +138,11 @@ class SCBurst(QMatrix):
         vecPr : array_like, shape (kA, 1)
             Probability of seeing r openings per burst depending on starting state.
         """
-
         if r == 1:
-            interm = np.eye(self.kA)
-        elif r == 2:
-            interm = self.GABAG
+            interm = self.IA
         else:
-            interm = self.GABAG
-            for i in range(2, r):
-                interm = np.dot(interm, self.GABAG)
-        vecPr = np.dot(interm, self.end_burst)
-        return vecPr.transpose()
+            interm = np.linalg.matrix_power(self.GABAG, r - 1)
+        return (interm @ self.end_burst).transpose()
 
     @property
     def mean_length(self):
@@ -167,9 +157,9 @@ class SCBurst(QMatrix):
             The mean burst length.
         """
 
-        interm1 = nplin.inv(self.probability_of_ending)
-        interm2 = self.IA - np.dot(np.dot(self.QAB, self.invQBB), self.GBA)
-        return (np.dot(np.dot(np.dot(np.dot(self.start_burst, interm1), -self.invQAA), interm2), self.uA)[0])
+        inv_ending = nplin.inv(self.probability_of_ending)
+        interm2 = self.IA - self.QAB @ self.invQBB @self.GBA
+        return (self.start_burst @ inv_ending @ -self.invQAA @ interm2 @ self.uA)[0]
 
     def length_pdf_components(self):
         """
@@ -187,8 +177,7 @@ class SCBurst(QMatrix):
         w = np.zeros(self.kE)
         eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QEE)
         for i in range(self.kE):
-            w[i] = np.dot(np.dot(np.dot(self.start_burst,
-                A[i][:self.kA, :self.kA]), (-self.QAA)), self.end_burst)[0]
+            w[i] = (self.start_burst @ A[i][:self.kA, :self.kA] @ (-self.QAA) @ self.end_burst)[0]
         return eigs, w
 
     def length_pdf_no_single_openings_components(self):
@@ -207,14 +196,11 @@ class SCBurst(QMatrix):
 
         eA, AA = qml.eigenvalues_and_spectral_matrices(-self.QAA)
         eE, AE = qml.eigenvalues_and_spectral_matrices(-self.QEE)
-        e = np.append(eE, eA)
-        A = np.append(AE[:,:self.kA, :self.kA], -AA, axis=0)
-        w = np.zeros(self.kA + self.kE)
-
-        for i in range(self.kA + self.kE):
-            w[i] = np.dot(np.dot(np.dot(self.start_burst,
-                A[i]), (-self.QAA)), self.end_burst) / self.probability_more_than_one_opening
-        
+        e = np.concatenate((eE, eA))
+        A = np.concatenate((AE[:, :self.kA, :self.kA], -AA), axis=0)
+        w = np.array([(self.start_burst @ A[i] @ (-self.QAA) @ self.end_burst) / self.probability_more_than_one_opening
+            for i in range(self.kA + self.kE)])
+       
         return e, w
 
     def length_pdf_direct(self, t):
@@ -234,7 +220,7 @@ class SCBurst(QMatrix):
         """
 
         expQEEA = qml.expQt(self.QEE, t)[ : self.kA, : self.kA]
-        return np.dot(np.dot(np.dot(self.start_burst, expQEEA), -self.QAA), self.end_burst)
+        return self.start_burst @ expQEEA @ -self.QAA @ self.end_burst
 
     def length_cond_pdf(self, t):
         """
@@ -252,8 +238,7 @@ class SCBurst(QMatrix):
         """
 
         expQEEA = qml.expQt(self.QEE, t)[ : self.kA, : self.kA]
-        vec = np.dot(np.dot(expQEEA, -self.QAA), self.end_burst)
-        return vec.transpose()
+        return (expQEEA @ -self.QAA @ self.end_burst).transpose()
 
     @property
     def mean_open_time(self):
@@ -266,8 +251,8 @@ class SCBurst(QMatrix):
             The mean total open time per burst.
         """
 
-        VAA = self.QAA + np.dot(self.QAB, self.GBA)
-        return np.dot(np.dot(self.start_burst, -nplin.inv(VAA)), self.uA)[0]
+        VAA = self.QAA + self.QAB @ self.GBA
+        return (self.start_burst @ -nplin.inv(VAA) @ self.uA)[0]
     
     def total_open_time_pdf_components(self):
         """
@@ -281,7 +266,7 @@ class SCBurst(QMatrix):
             Component amplitudes.
         """
 
-        VAA = self.QAA + np.dot(self.QAB, self.GBA)
+        VAA = self.QAA + self.QAB @ self.GBA
         e, A = qml.eigenvalues_and_spectral_matrices(-VAA)
 
         w = np.zeros(self.kA)
@@ -296,7 +281,7 @@ class SCBurst(QMatrix):
            Probability of a burst having just one opening is 
            P(1) = start_burst * end_burst"""
         
-        return 1 - np.dot(self.start_burst, self.end_burst)[0]
+        return 1 - (self.start_burst @ self.end_burst)[0]
 
     def first_opening_length_pdf_components(self):
         """
@@ -312,11 +297,9 @@ class SCBurst(QMatrix):
         """
 
         e, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
-        w = np.zeros(self.kA)
-        for i in range(self.kA):
-            w[i] = np.dot(np.dot(np.dot(np.dot(self.start_burst,
-                A[i]), (-self.QAA)), np.dot(self.GAB, self.GBA)), self.uA) / self.probability_more_than_one_opening
-
+        w = np.array([
+            (self.start_burst @ A[i] @ (-self.QAA) @ self.GABAG @ self.uA) / self.probability_more_than_one_opening
+            for i in range(self.kA)])
         return e, w
 
     @property
@@ -330,8 +313,7 @@ class SCBurst(QMatrix):
             The mean total shut time per burst.
         """
 
-        WBB = self.QBB + np.dot(self.QBA, self.GAB)
-        return np.dot(np.dot(np.dot(np.dot(self.start_burst, self.GAB), -nplin.inv(WBB)), self.GBA), self.uA)[0]
+        return (self.start_burst @ self.GAB @ -nplin.inv(self.WBB) @ self.GBA @ self.uA)[0]
     
     @property
     def mean_shut_times_between_bursts(self):
@@ -344,11 +326,10 @@ class SCBurst(QMatrix):
             The mean shut time between bursts.
         """
 
-        end = np.dot(-self.QAA, self.end_burst)
-        start = self.pinfA / np.dot(self.pinfA, end)
-        m1 = np.dot(np.dot(self.QAF, -self.invQFF), self.GFA)
-        m2 = np.dot(np.dot(self.QAB, -self.invQBB), self.GBA)
-        return np.dot(np.dot(start, m1 - m2), self.uA)[0]
+        start = self.pinfA / (self.pinfA @ -self.QAA @ self.end_burst)
+        m1 = self.QAF @ -self.invQFF @ self.GFA
+        m2 = self.QAB @ -self.invQBB @ self.GBA
+        return (start @ (m1 - m2) @ self.uA)[0]
 
     def shut_times_inside_burst_pdf_components(self):
         """
@@ -384,14 +365,12 @@ class SCBurst(QMatrix):
             Component amplitudes.
         """
 
-        WBB = self.QBB + np.dot(self.QBA, self.GAB)
-        e, A = qml.eigenvalues_and_spectral_matrices(-WBB)
-        norm = 1 - np.dot(self.start_burst, self.end_burst)[0]
+        e, A = qml.eigenvalues_and_spectral_matrices(-self.WBB)
+        norm = 1 - (self.start_burst @ self.end_burst)[0]
 
         w = np.zeros(self.kB)
         for i in range(self.kB):
-            w[i] = np.dot(np.dot(np.dot(np.dot(self.start_burst, self.GAB),
-                A[i]), (self.QBA)), self.end_burst) / norm
+            w[i] = (self.start_burst @ self.GAB @ A[i] @ self.QBA @ self.end_burst) / norm
 
         return e, w
 
@@ -409,27 +388,25 @@ class SCBurst(QMatrix):
 
         eigsB, AmatB = qml.eigenvalues_and_spectral_matrices(-self.QBB)
         eigsF, AmatF = qml.eigenvalues_and_spectral_matrices(-self.QFF)
-        end = np.dot(-self.QAA, self.end_burst)
-        start = self.pinfA / np.dot(self.pinfA, end)
-
-        rowB = np.dot(start, self.QAB)
-        rowF = np.dot(start, self.QAF)
-        colB = np.dot(self.QBA, self.uA)
-        colF = np.dot(self.QFA, self.uA)
-        wB = -np.dot(np.dot(rowB, AmatB), colB)
-        wF = np.dot(np.dot(rowF, AmatF), colF)
-
-        w = np.append(wB, wF)
-        e = np.append(eigsB, eigsF)
-        return e, w
+        start = self.pinfA / (self.pinfA @ -self.QAA @ self.end_burst)
+        wB = -start @ self.QAB @ AmatB @ self.QBA @ self.uA
+        wF = start @ self.QAF @ AmatF @ self.QFA @ self.uA
+        return np.append(eigsB, eigsF), np.append(wB, wF)
     
     @property
     def burst_popen(self):
+        """
+        Calculate the burst open probability.
+        """
         return self.mean_open_time / self.mean_length
-    
+
     @property
     def total_popen(self):
+        """
+        Calculate the total open probability.
+        """
         return self.mean_open_time / (self.mean_length + self.mean_shut_times_between_bursts)
+   
 
 
 #######################   DEPRECATED   ##############################

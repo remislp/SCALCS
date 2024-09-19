@@ -128,12 +128,12 @@ class QMatrixPrints(QMatrix):
         return dc_str
 
 class SCBurstPrints(SCBurst):
-    '''
-    Print Q-Matrix stuff.
-    '''
+    """
+    Print Q-Matrix calculations for single-channel burst analysis.
+    """
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
-        SCBurst.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
     @property
     def print_all(self):
@@ -193,6 +193,9 @@ class SCBurstPrints(SCBurst):
  
     @property
     def print_openings_pdf(self):
+        """
+        Print the PDF of openings within bursts.
+        """
         e1, w1 = self.total_open_time_pdf_components()
         info_str = expPDF_printout(e1, w1, '\nPDF of total open time per burst')
         e2, w2 = self.first_opening_length_pdf_components()
@@ -213,6 +216,7 @@ class SCBurstPrints(SCBurst):
 
 def expPDF_printout(eigs, amps, title):
     """
+    Print exponential PDF data.
     """
 
     info_str = '\n'+title+ '\n'
@@ -231,6 +235,30 @@ def expPDF_printout(eigs, amps, title):
         '\t\tSD = {0:.5g}'.format(sd * 1000) +
         '\t\tSD/mean = {0:.5g}\n'.format(sd / mean))
         
+    return info_str
+
+def geometricPDF_printout(rho, w, title):
+    """
+    """
+
+    info_str = '\n'+title+ '\n'
+    table = []
+    norm = 1 / (np.ones((rho.shape[0])) - rho)
+    for i in range(len(rho)):
+        table.append([i+1, w[i], rho[i], 100 * w[i] * norm[i], norm[i]])
+
+    info_str += tabulate(table, 
+                              headers=['Term', 'w', 'rho', 'area(%)', 'Norm mean'], 
+                              tablefmt='orgtbl')
+            
+    k = rho.shape[0]
+    mean = np.sum(w / np.power(np.ones((k)) - rho, 2))
+    var = np.sum(w * (np.ones((k)) + rho) / np.power(np.ones((k)) - rho, 3))
+    sd = sqrt(var - mean * mean)
+
+    info_str += ('\nMean number of openings per burst =\t {0:.5g}'.format(mean) +
+        '\n\tSD =\t {0:.5g}'.format(sd) +
+        '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
     return info_str
 
 def expPDF_asymptotic_printout(eigs, areas, tres, title):
@@ -259,31 +287,6 @@ def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
     info_str += tabulate(table, 
                               headers=['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)'], 
                               tablefmt='orgtbl')       
-    return info_str
-
-
-def geometricPDF_printout(rho, w, title):
-    """
-    """
-
-    info_str = '\n'+title+ '\n'
-    table = []
-    norm = 1 / (np.ones((rho.shape[0])) - rho)
-    for i in range(len(rho)):
-        table.append([i+1, w[i], rho[i], 100 * w[i] * norm[i], norm[i]])
-
-    info_str += tabulate(table, 
-                              headers=['Term', 'w', 'rho', 'area(%)', 'Norm mean'], 
-                              tablefmt='orgtbl')
-            
-    k = rho.shape[0]
-    mean = np.sum(w / np.power(np.ones((k)) - rho, 2))
-    var = np.sum(w * (np.ones((k)) + rho) / np.power(np.ones((k)) - rho, 3))
-    sd = sqrt(var - mean * mean)
-
-    info_str += ('\nMean number of openings per burst =\t {0:.5g}'.format(mean) +
-        '\n\tSD =\t {0:.5g}'.format(sd) +
-        '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
     return info_str
 
 
