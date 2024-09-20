@@ -140,126 +140,136 @@ class SCBurstPrints(SCBurst):
         """
         Output burst calculations.
         """
-
-        all_str = ('\n*******************************************\n' +
-        'CALCULATED SINGLE CHANNEL BURST MEANS, PDFS, ETC....\n')
-
-        all_str += self.print_start_end_vectors
-        all_str += self.print_popen
-        all_str += self.print_length_pdf
-        all_str += self.print_openings_pdf
-        all_str += self.print_shuttings_pdf
-        return all_str
+        sections = [
+            '\n*******************************************',
+            'CALCULATED SINGLE CHANNEL BURST MEANS, PDFS, ETC....',
+            self.print_start_end_vectors,
+            self.print_popen,
+            self.print_length_pdf,
+            self.print_openings_pdf,
+            self.print_shuttings_pdf
+        ]
+        return '\n'.join(sections)
 
     @property
     def print_start_end_vectors(self):
-
-        info_str = '\nBurst start vector = '
-        for i in range(self.kA):
-            info_str += '\t{0:.5g}\t'.format(self.start_burst[i])
-        info_str += '\nBurst end vector ='
-        for i in range(self.kA):
-            info_str += '\t{0:.5g}\t'.format(self.end_burst[i, 0])
-        return info_str
+        """
+        Print the burst start and end vectors.
+        """
+        start_vector = '\nBurst start vector = ' + '\t'.join(f'{x:.5g}' for x in self.start_burst)
+        end_vector = '\nBurst end vector =' + '\t'.join(f'{self.end_burst[i, 0]:.5g}' for i in range(self.kA))
+        return start_vector + end_vector
 
     @property
     def print_means(self):
-        
-        info_str = '\n\nMean number of opening per burst = {0:.6g}'.format(self.mean_number_of_openings)
-#        print('\nNo of gaps within burst per unit open time = {0:.6g} \n'.
-#              format((self.mean_number_of_openings() - 1) / self.mean_open_time()))
-        info_str += '\nMean burst length (ms)= {0:.6g}'.format(1000 * self.mean_length)
-        info_str += '\nMean open time per burst (ms)= {0:.6g}'.format(1000 * self.mean_open_time)
-        info_str += '\nMean shut time per burst (ms; all bursts)= {0:.6g}'.format(1000 * self.mean_shut_time)
-        info_str += ('\nMean shut time per burst (ms; excluding single opening bursts)= {0:.6g}'.
-            format(1000 * self.mean_shut_time / self.probability_more_than_one_opening))
-        info_str += '\nMean shut time between bursts (ms)= {0:.6g}'.format(1000 * self.mean_shut_times_between_bursts)
-        return info_str
- 
+        """
+        Print mean values related to burst behavior.
+        """
+        sections = [
+            f'\n\nMean number of openings per burst = {self.mean_number_of_openings:.6g}',
+            f'Mean burst length (ms) = {1000 * self.mean_length:.6g}',
+            f'Mean open time per burst (ms) = {1000 * self.mean_open_time:.6g}',
+            f'Mean shut time per burst (ms; all bursts) = {1000 * self.mean_shut_time:.6g}',
+            f'Mean shut time per burst (ms; excluding single opening bursts) = {1000 * self.mean_shut_time / self.probability_more_than_one_opening:.6g}',
+            f'Mean shut time between bursts (ms) = {1000 * self.mean_shut_times_between_bursts:.6g}'
+        ]
+        return '\n'.join(sections)
+
     @property
     def print_popen(self):
-        
-        info_str = '\n\nPopen WITHIN BURST = (open time/burst)/(bst length) = {0:.5g}'.format(self.burst_popen)
-        info_str += ('\nTotal Popen = (open time/bst)/(bst_length + mean gap between burst) = {0:.5g}'.format(self.total_popen))
-        return info_str
+        """
+        Print Popen (probability of being open) values.
+        """
+        sections = [
+            f'\n\nPopen WITHIN BURST = (open time/burst)/(burst length) = {self.burst_popen:.5g}',
+            f'Total Popen = (open time/burst)/(burst length + mean gap between bursts) = {self.total_popen:.5g}'
+        ]
+        return '\n'.join(sections)
 
     @property
     def print_length_pdf(self):
+        """
+        Print the PDF of burst lengths.
+        """
         e1, w1 = self.length_pdf_components()
-        info_str = (expPDF_printout(e1, w1, '\nPDF of total burst length, unconditional'))
         e2, w2 = self.length_pdf_no_single_openings_components()
-        info_str += expPDF_printout(e2, w2, '\nPDF of burst length for bursts with 2 or more openings')
-        return info_str
- 
+        sections = [
+            expPDF_printout(e1, w1, '\nPDF of total burst length, unconditional'),
+            expPDF_printout(e2, w2, '\nPDF of burst length for bursts with 2 or more openings')
+        ]
+        return ''.join(sections)
+
     @property
     def print_openings_pdf(self):
         """
         Print the PDF of openings within bursts.
         """
         e1, w1 = self.total_open_time_pdf_components()
-        info_str = expPDF_printout(e1, w1, '\nPDF of total open time per burst')
         e2, w2 = self.first_opening_length_pdf_components()
-        info_str += (expPDF_printout(e2, w2, '\nPDF of first opening in a burst with 2 or more openings'))
         rho, w = self.openings_distr_components()
-        info_str += (geometricPDF_printout(rho, w, '\nGeometric PDF of of number (r) of openings / burst (unconditional)'))
-        return info_str
+        sections = [
+            expPDF_printout(e1, w1, '\nPDF of total open time per burst'),
+            expPDF_printout(e2, w2, '\nPDF of first opening in a burst with 2 or more openings'),
+            geometricPDF_printout(rho, w, '\nGeometric PDF of number (r) of openings per burst (unconditional)')
+        ]
+        return ''.join(sections)
 
     @property
     def print_shuttings_pdf(self):
+        """
+        Print the PDF of shuttings within bursts and between bursts.
+        """
         e1, w1 = self.shut_times_inside_burst_pdf_components()
-        info_str = (expPDF_printout(e1, w1, '\nPDF of gaps inside burst'))
         e2, w2 = self.shut_times_between_burst_pdf_components()
-        info_str += (expPDF_printout(e2, w2, '\nPDF of gaps between burst'))
         e3, w3 = self.shut_time_total_pdf_components_2more_openings()
-        info_str += (expPDF_printout(e3, w3, '\nPDF of total shut time per bursts for bursts with at least 2 openings'))
-        return info_str
+        sections = [
+            expPDF_printout(e1, w1, '\nPDF of gaps inside burst'),
+            expPDF_printout(e2, w2, '\nPDF of gaps between bursts'),
+            expPDF_printout(e3, w3, '\nPDF of total shut time per burst for bursts with at least 2 openings')
+        ]
+        return ''.join(sections)
 
 def expPDF_printout(eigs, amps, title):
     """
     Print exponential PDF data.
     """
-
-    info_str = '\n'+title+ '\n'
-    table = []
-    for i in range(len(eigs)):
-        table.append([i+1, amps[i], eigs[i], 1000 / eigs[i], 100 * amps[i] / eigs[i]])
-
-    info_str += tabulate(table, 
-                              headers=['Term', 'Amplitude', 'Rate (1/sec)', 'tau (ms)', 'Area (%)'], 
-                              tablefmt='orgtbl')       
-
+    table = [
+        [i+1, amps[i], eigs[i], 1000 / eigs[i], 100 * amps[i] / eigs[i]]
+        for i in range(len(eigs))
+    ]
+    info_str = f'\n{title}\n' + tabulate(
+        table,
+        headers=['Term', 'Amplitude', 'Rate (1/sec)', 'tau (ms)', 'Area (%)'],
+        tablefmt='orgtbl'
+    )
+    
     mean = np.sum((amps/eigs) * (1/eigs))
     var = np.sum((amps/eigs) * (1/eigs) * (1/eigs))
-    sd = sqrt(2 * var - mean * mean)
-    info_str += ('\nMean (ms) = {0:.5g}'.format(mean * 1000) +
-        '\t\tSD = {0:.5g}'.format(sd * 1000) +
-        '\t\tSD/mean = {0:.5g}\n'.format(sd / mean))
-        
+    sd = np.sqrt(2 * var - mean * mean)
+    info_str += f'\nMean (ms) = {mean * 1000:.5g}\t\tSD = {sd * 1000:.5g}\t\tSD/mean = {sd / mean:.5g}\n'
     return info_str
 
 def geometricPDF_printout(rho, w, title):
     """
+    Print geometric PDF data.
     """
-
-    info_str = '\n'+title+ '\n'
-    table = []
-    norm = 1 / (np.ones((rho.shape[0])) - rho)
-    for i in range(len(rho)):
-        table.append([i+1, w[i], rho[i], 100 * w[i] * norm[i], norm[i]])
-
-    info_str += tabulate(table, 
-                              headers=['Term', 'w', 'rho', 'area(%)', 'Norm mean'], 
-                              tablefmt='orgtbl')
-            
-    k = rho.shape[0]
-    mean = np.sum(w / np.power(np.ones((k)) - rho, 2))
-    var = np.sum(w * (np.ones((k)) + rho) / np.power(np.ones((k)) - rho, 3))
-    sd = sqrt(var - mean * mean)
-
-    info_str += ('\nMean number of openings per burst =\t {0:.5g}'.format(mean) +
-        '\n\tSD =\t {0:.5g}'.format(sd) +
-        '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
+    norm = 1 / (np.ones(rho.shape) - rho)
+    table = [
+        [i+1, w[i], rho[i], 100 * w[i] * norm[i], norm[i]]
+        for i in range(len(rho))
+    ]
+    info_str = f'\n{title}\n' + tabulate(
+        table,
+        headers=['Term', 'w', 'rho', 'area(%)', 'Norm mean'],
+        tablefmt='orgtbl'
+    )
+    
+    mean = np.sum(w / np.power(np.ones(len(rho)) - rho, 2))
+    var = np.sum(w * (np.ones(len(rho)) + rho) / np.power(np.ones(len(rho)) - rho, 3))
+    sd = np.sqrt(var - mean * mean)
+    info_str += f'\nMean number of openings per burst = {mean:.5g}\n\tSD = {sd:.5g}\tSD/mean = {sd / mean:.5g}\n'
     return info_str
+
 
 def expPDF_asymptotic_printout(eigs, areas, tres, title):
     """
