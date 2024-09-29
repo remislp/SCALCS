@@ -13,6 +13,8 @@ from scalcs import scalcslib as scl
 from scalcs import popen
 from gui import myqtcommon
 
+from scalcs.qmatprint import QMatrixPrints, TCritPrints, CorrelationPrints
+
 class ScalcsMenu(QMenu):
     """
     """
@@ -94,7 +96,10 @@ class ScalcsMenu(QMenu):
         self.parent.txtPltBox.append(str)
 
         self.parent.mec.set_eff('c', self.parent.conc)
-        self.parent.log.write(scl.printout_correlations(self.parent.mec))
+        #self.parent.log.write(scl.printout_correlations(self.parent.mec))
+        q_corrs = CorrelationPrints(self.parent.mec.Q, 
+                                    self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD)
+        self.parent.log.write(q_corrs.print_all)
         # TODO: need dialog to enter lag value. 
         lag = 5
         n, roA, roF, roAF = scpl.corr_open_shut(self.parent.mec, lag)
@@ -302,7 +307,9 @@ class ScalcsMenu(QMenu):
         self.parent.txtPltBox.append(str)
 
         self.parent.mec.set_eff('c', self.parent.conc)
-        self.parent.log.write(scl.printout_tcrit(self.parent.mec))
+        #self.parent.log.write(scl.printout_tcrit(self.parent.mec))
+        tcrits = TCritPrints(self.parent.mec)
+        self.parent.log.write(tcrits.print_all)
         t, ipdf, epdf, apdf = scpl.shut_time_pdf(self.parent.mec, self.parent.tres)
         self.parent.present_plot = np.vstack((t, ipdf, epdf, apdf))
 

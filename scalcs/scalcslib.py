@@ -114,6 +114,37 @@ class SCDwells(QMatrix):
             w[i] = np.dot(np.dot(np.dot(self.phiF, A[i]), (-self.QFF)), self.uF)[0]
         return eigs, w
 
+    def ideal_dwell_time_pdf(self, t, open=True):
+        """
+        Probability density function of the open time.
+        f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
+
+        Parameters
+        ----------
+        t : float
+            Time (sec).
+
+        Returns
+        -------
+        f : float
+        """
+
+        phiX = self.phiA if open else self.phiF
+        QXX = self.QAA if open else self.QFF
+        u = self.uA if open else self.uF
+        expQXX = qml.expQ(self.QAA, t) if open else qml.expQ(self.QFF, t)
+        return phiX @ expQXX @ -QXX @ u
+
+
+    def ideal_subset_time_pdf(self, Q, k1, k2, t):
+        """        
+        """
+        
+        u = np.ones((k2 - k1 + 1, 1))
+        phi, QSub = qml.phiSub(Q, k1, k2)
+        expQSub = qml.expQ(QSub, t)
+        return phi @ expQSub @ -QSub @ u
+
     @property
     def apparentPopen(self): #eGAF, eGFA, kA):
          return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
@@ -646,7 +677,147 @@ class SCDwells(QMatrix):
         Z11 = np.einsum('ijk,kl->ijl', C11, M)
 
         return eigs, Z00, Z10, Z11
-    
+
+
+    def adjacent_open_to_shut_range_mean(self, u1, u2): #, QAA, QAF, QFF, QFA, phiA):
+        """
+        Calculate mean (ideal- no missed events) open times adjacent to a specified shut time range.
+
+        Parameters
+        ----------
+        u1, u2 : floats
+            Shut time range.
+
+        Returns
+        -------
+        m : float
+            Mean open time.
+        """
+        
+        #kA = QAA.shape[0]
+        uA = np.ones((self.kA))[:,np.newaxis]
+        phiAr = self.phiA.reshape(1, self.kA)
+        invQAA, invQFF = -nplin.inv(self.QAA), nplin.inv(self.QFF)
+        expQFFr = qml.expQ(self.QFF, u2) - qml.expQ(self.QFF, u1)
+        col = np.dot(np.dot(np.dot(np.dot(self.QAF, invQFF), expQFFr), self.QFA), uA)
+        row1 = np.dot(phiAr, qml.Qpow(invQAA, 2))
+        row2 = np.dot(phiAr, invQAA)
+        m = np.dot(row1, col)[0, 0] / np.dot(row2, col)[0, 0]
+        return m
+
+    def adjacent_open_to_shut_range_pdf_components(self, u1, u2): #, QAA, QAF, QFF, QFA, phiA):
+        """
+        Calculate time constants and areas for an ideal (no missed events)
+        exponential probability density function of open times adjacent to a 
+        specified shut time range.
+
+        Parameters
+        ----------
+        u1, u2 : floats
+            Shut time range.
+
+        Returns
+        -------
+        eigs : ndarray, shape(k, 1)
+            Eigenvalues.
+        areas : ndarray, shape(k, 1)
+            Component relative areas.
+        """
+
+        uA = np.ones((self.kA))[:,np.newaxis]
+        phiAr = self.phiA.reshape(1, self.kA)
+        invQAA, invQFF = -nplin.inv(self.QAA), nplin.inv(self.QFF)
+        expQFFr = qml.expQ(self.QFF, u2) - qml.expQ(self.QFF, u1)
+        col = self.QAF @ invQFF @ expQFFr @ self.QFA @ uA
+        w = np.zeros(self.kA)
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
+        den = (phiAr @ invQAA @ col)[0, 0]
+        #TODO: remove 'for'
+        #w = np.array([(self.phiA @ A[i] @ col / den) for i in range(self.kA)])
+        for i in range(self.kA):
+            w[i] = (self.phiA @ A[i] @ col) / den
+        return eigs, w
+
+
+    def HJC_adjacent_mean_open_to_shut_time_pdf(self, shut_times):
+        """
+        Calculate theoretical HJC (with missed events correction) mean open time
+        given previous/next gap length (continuous function; CHS96 Eq.3.5). 
+
+        Parameters
+        ----------
+        shut_times : array of floats
+            Shut time interval.
+
+        Returns
+        -------
+        mp : ndarray of floats
+            Mean open time given previous gap length.
+        mn : ndarray of floats
+            Mean open time given next gap length.
+        """
+        
+        #kA, kF = QAA.shape[0], QFF.shape[0]
+        uA = np.ones((self.kA))[:,np.newaxis]
+        uF = np.ones((self.kF))[:,np.newaxis]
+        #expQFF = qml.expQ(self.QFF, self.tres)
+        #expQAA = qml.expQ(self.QAA, self.tres)
+        DARS = self.dARSdS()
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.Q)
+        FZ00, FZ10, FZ11 = self.Zxx(open=False)
+        Froots = asymptotic_roots(self.tres, open=False)
+        FR = self.R(Froots, open=False)
+        Q1 = DARS @ self.QAF @ self.expQFF
+        col1 = Q1 @ uF
+        row1 = self.HJCphiA @ Q1
+        
+        mp, mn = [], []
+        for t in shut_times:
+            eGFAt = qml.eGAF(t, self.tres, eigs, FZ00, FZ10, FZ11, Froots, FR, self.QFA, self.expQAA)
+            denom = (self.HJCphiF @ eGFAt @ uA)[0]
+            mp.append((self.HJCphiF @ eGFAt @ col1)[0] / denom)
+            mn.append((row1 @ eGFAt @ uA)[0] / denom)
+        return np.array(mp), np.array(mn)
+
+
+    def HJC_dependency(self, top, tsh):
+        """
+        Calculate normalised joint distribution (CHS96, Eq. 3.22) of an open time
+        and the following shut time as proposed by Magleby & Song 1992. 
+        
+        Parameters
+        ----------
+        top, tsh : array_like of floats
+            Open and shut tims.
+
+        Returns
+        -------
+        dependency : ndarray
+        """
+        
+        uA = np.ones((self.kA))[:,np.newaxis]
+        uF = np.ones((self.kF))[:,np.newaxis]
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
+        FZ00, FZ10, FZ11 = self.Zxx(open=False)
+        Froots = self.asymptotic_roots(open=False)
+        FR = self.R(Froots, open=False) 
+        AZ00, AZ10, AZ11 = self.Zxx(open=True)
+        Aroots = self.asymptotic_roots(open=True)
+        AR = self.R(Aroots, open=True)
+
+        dependency = np.zeros((top.shape[0], tsh.shape[0]))
+        for i in range(top.shape[0]):
+            eGAFt = qml.eGAF(top[i], self.tres, eigs, AZ00, AZ10, AZ11, Aroots, AR, self.QAF, self.expQFF)
+            fo = (self.HJCphiA @ eGAFt @ uF)[0]
+            for j in range(tsh.shape[0]):
+                eGFAt = qml.eGAF(tsh[j], self.tres, eigs, FZ00, FZ10, FZ11, Froots, FR, self.QFA, self.expQAA)
+                fs = (self.HJCphiF @ eGFAt @ uA)[0]
+                fos = (self.HJCphiA @ eGAFt @ eGFAt @ uA)[0]
+                dependency[i, j] = (fos - (fo * fs)) / (fo * fs)
+        return dependency
+
+
+
 ############################   CORRELATIONS   #######################################
 
 class SCCorrelations(QMatrix):
@@ -776,45 +947,11 @@ class SCCorrelations(QMatrix):
         return w, eigs
 
 
+
+
+
 ############################   FUNCTIONS TO REVIEW   ########################################
 
-def ideal_dwell_time_pdf(t, QAA, phiA):
-    """
-    Probability density function of the open time.
-    f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
-    For shut time pdf A by F in function call.
-
-    Parameters
-    ----------
-    t : float
-        Time (sec).
-    QAA : array_like, shape (kA, kA)
-        Submatrix of Q.
-    phiA : array_like, shape (1, kA)
-        Initial vector for openings
-
-    Returns
-    -------
-    f : float
-    """
-
-    kA = QAA.shape[0]
-    uA = np.ones((kA, 1))
-    expQAA = qml.expQ(QAA, t)
-    f = np.dot(np.dot(np.dot(phiA, expQAA), -QAA), uA)
-    return f
-
-
-def ideal_subset_time_pdf(Q, k1, k2, t):
-    """
-    
-    """
-    
-    u = np.ones((k2 - k1 + 1, 1))
-    phi, QSub = qml.phiSub(Q, k1, k2)
-    expQSub = qml.expQ(QSub, t)
-    f = np.dot(np.dot(np.dot(phi, expQSub), -QSub), u)
-    return f
 
 
 
@@ -1035,186 +1172,15 @@ def HJClik(theta, opts):
     return -loglik, newrates
 
 
-def adjacent_open_to_shut_range_mean(u1, u2, QAA, QAF, QFF, QFA, phiA):
-    """
-    Calculate mean (ideal- no missed events) open times adjacent to a 
-    specified shut time range.
-
-    Parameters
-    ----------
-    u1, u2 : floats
-        Shut time range.
-    QAA, QAF, QFF, QFA : array_like
-        Submatrices of Q.
-    phiA : array_like, shape (1, kA)
-        Initial vector for openings
-
-    Returns
-    -------
-    m : float
-        Mean open time.
-    """
-    
-    kA = QAA.shape[0]
-    uA = np.ones((kA))[:,np.newaxis]
-    invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
-    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
-    col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
-    row1 = np.dot(phiA, qml.Qpow(invQAA, 2))
-    row2 = np.dot(phiA, invQAA)
-    m = np.dot(row1, col)[0, 0] / np.dot(row2, col)[0, 0]
-    return m
-
-def HJC_dependency(top, tsh, tres, Q, QAA, QAF, QFF, QFA):
-    """
-    Calculate normalised joint distribution (CHS96, Eq. 3.22) of an open time
-    and the following shut time as proposed by Magleby & Song 1992. 
-    
-    Parameters
-    ----------
-    top, tsh : array_like of floats
-        Open and shut tims.
-    tres : float
-        Time resolution.
-    Q : array, shape (k,k)
-        Q matrix. 
-    QAA, QAF, QFF, QFA : array_like
-        Submatrices of Q.
-
-    Returns
-    -------
-    dependency : ndarray
-    """
-    
-    kA, kF = QAA.shape[0], QFF.shape[0]
-    uA = np.ones((kA))[:,np.newaxis]
-    uF = np.ones((kF))[:,np.newaxis]
-    expQFF = qml.expQ(QFF, tres)
-    expQAA = qml.expQ(QAA, tres)
-    GAF, GFA = qml.iGs(Q, kA, kF)
-    eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
-    eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
-    phiA = qml.phiHJC(eGAF, eGFA, kA)
-    phiF = qml.phiHJC(eGFA, eGAF, kF)
-    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
-    FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
-    Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
-    FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
-    AZ00, AZ10, AZ11 = qml.Zxx(Q, eigs, A, kA, QFF, QAF, QFA, expQFF, True)
-    Aroots = asymptotic_roots(tres, QAA, QFF, QAF, QFA, kA, kF)
-    AR = qml.AR(Aroots, tres, QAA, QFF, QAF, QFA, kA, kF)
-
-    dependency = np.zeros((top.shape[0], tsh.shape[0]))
-    
-    for i in range(top.shape[0]):
-        eGAFt = qml.eGAF(top[i], tres, eigs, AZ00, AZ10, AZ11, Aroots,
-                AR, QAF, expQFF)
-        fo = np.dot(np.dot(phiA, eGAFt), uF)[0]
-        
-        for j in range(tsh.shape[0]):
-            eGFAt = qml.eGAF(tsh[j], tres, eigs, FZ00, FZ10, FZ11, Froots,
-                FR, QFA, expQAA)
-            fs = np.dot(np.dot(phiF, eGFAt), uA)[0]
-            fos = np.dot(np.dot(np.dot(phiA, eGAFt), eGFAt), uA)[0]
-            dependency[i, j] = (fos - (fo * fs)) / (fo * fs)
-    return dependency
-
-def HJC_adjacent_mean_open_to_shut_time_pdf(sht, tres, Q, QAA, QAF, QFF, QFA):
-    """
-    Calculate theoretical HJC (with missed events correction) mean open time
-    given previous/next gap length (continuous function; CHS96 Eq.3.5). 
-
-    Parameters
-    ----------
-    sht : array of floats
-        Shut time interval.
-    tres : float
-        Time resolution.
-    Q : array, shape (k,k)
-        Q matrix.
-    QAA, QAF, QFF, QFA : array_like
-        Submatrices of Q.
-
-    Returns
-    -------
-    mp : ndarray of floats
-        Mean open time given previous gap length.
-    mn : ndarray of floats
-        Mean open time given next gap length.
-    """
-    
-    kA, kF = QAA.shape[0], QFF.shape[0]
-    uA = np.ones((kA))[:,np.newaxis]
-    uF = np.ones((kF))[:,np.newaxis]
-    expQFF = qml.expQ(QFF, tres)
-    expQAA = qml.expQ(QAA, tres)
-    GAF, GFA = qml.iGs(Q, kA, kF)
-    eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
-    eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
-    phiA = qml.phiHJC(eGAF, eGFA, kA)
-    phiF = qml.phiHJC(eGFA, eGAF, kF)
-    DARS = qml.dARSdS(tres, QAA, QFF, GAF, GFA, expQFF, kA, kF)
-    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
-    FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
-    Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
-    FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
-    Q1 = np.dot(np.dot(DARS, QAF), expQFF)
-    col1 = np.dot(Q1, uF)
-    row1 = np.dot(phiA, Q1)
-    
-    mp = []
-    mn = []
-    for t in sht:
-        eGFAt = qml.eGAF(t, tres, eigs, FZ00, FZ10, FZ11, Froots,
-                    FR, QFA, expQAA)
-        denom = np.dot(np.dot(phiF, eGFAt), uA)[0]
-        nom1 = np.dot(np.dot(phiF, eGFAt), col1)[0]
-        nom2 = np.dot(np.dot(row1, eGFAt), uA)[0]
-        mp.append(nom1 / denom)
-        mn.append(nom2 / denom)
-    
-    return np.array(mp), np.array(mn)
-
-def adjacent_open_to_shut_range_pdf_components(u1, u2, QAA, QAF, QFF, QFA, phiA):
-    """
-    Calculate time constants and areas for an ideal (no missed events)
-    exponential probability density function of open times adjacent to a 
-    specified shut time range.
-
-    Parameters
-    ----------
-    t : float
-        Time (sec).
-    QAA : array_like, shape (kA, kA)
-        Submatrix of Q.
-    phiA : array_like, shape (1, kA)
-        Initial vector for openings
-
-    Returns
-    -------
-    taus : ndarray, shape(k, 1)
-        Time constants.
-    areas : ndarray, shape(k, 1)
-        Component relative areas.
-    """
-
-    kA = QAA.shape[0]
-    uA = np.ones((kA))[:,np.newaxis]
-    invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
-    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
-    col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
-    w = np.zeros(kA)
-    eigs, A = qml.eigenvalues_and_spectral_matrices(-QAA)
-    row = np.dot(phiA, invQAA)
-    den = np.dot(row, col)[0, 0]
-    #TODO: remove 'for'
-    for i in range(kA):
-        w[i] = np.dot(np.dot(phiA, A[i]), col) / den
-    return eigs, w
 
 
 
 
+
+
+#####################   DEPRECATED FUNCTIONS   #################################
+
+@deprecated("Use '...'")
 def sortShell2(vals, simp):
     """
     Shell sort using Shell's (original) gap sequence: n/2, n/4, ..., 1.
@@ -1236,7 +1202,7 @@ def sortShell2(vals, simp):
          gap //= 2
     return vals, simp
 
-
+@deprecated("Use '...'")
 def tcrits(mec):
     eigs, w = ideal_dwell_time_pdf_components(mec.QII, qml.phiF(mec))
 
@@ -1278,7 +1244,7 @@ def tcrits(mec):
 
     return tcrits
 
-
+@deprecated("Use '...'")
 def printout_tcrit(mec):
     """
     Output calculations based on division into bursts by critical time (tcrit).
@@ -1349,32 +1315,226 @@ def printout_tcrit(mec):
             
     return str
 
+@deprecated("Use '...'")
+def ideal_dwell_time_pdf(t, QAA, phiA):
+    """
+    Probability density function of the open time.
+    f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
+    For shut time pdf A by F in function call.
 
-        
-def printout_adjacent(mec, t1, t2):
+    Parameters
+    ----------
+    t : float
+        Time (sec).
+    QAA : array_like, shape (kA, kA)
+        Submatrix of Q.
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings
+
+    Returns
+    -------
+    f : float
     """
 
+    kA = QAA.shape[0]
+    uA = np.ones((kA, 1))
+    expQAA = qml.expQ(QAA, t)
+    f = np.dot(np.dot(np.dot(phiA, expQAA), -QAA), uA)
+    return f
+
+@deprecated("Use '...'")
+def ideal_subset_time_pdf(Q, k1, k2, t):
+    """
+    
+    """
+    
+    u = np.ones((k2 - k1 + 1, 1))
+    phi, QSub = qml.phiSub(Q, k1, k2)
+    expQSub = qml.expQ(QSub, t)
+    f = np.dot(np.dot(np.dot(phi, expQSub), -QSub), u)
+    return f
+
+@deprecated("Use '...'")
+def adjacent_open_to_shut_range_mean(u1, u2, QAA, QAF, QFF, QFA, phiA):
+    """
+    Calculate mean (ideal- no missed events) open times adjacent to a 
+    specified shut time range.
+
+    Parameters
+    ----------
+    u1, u2 : floats
+        Shut time range.
+    QAA, QAF, QFF, QFA : array_like
+        Submatrices of Q.
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings
+
+    Returns
+    -------
+    m : float
+        Mean open time.
+    """
+    
+    kA = QAA.shape[0]
+    uA = np.ones((kA))[:,np.newaxis]
+    invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
+    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
+    col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
+    row1 = np.dot(phiA, qml.Qpow(invQAA, 2))
+    row2 = np.dot(phiA, invQAA)
+    m = np.dot(row1, col)[0, 0] / np.dot(row2, col)[0, 0]
+    return m
+
+@deprecated("Use '...'")
+def HJC_dependency(top, tsh, tres, Q, QAA, QAF, QFF, QFA):
+    """
+    Calculate normalised joint distribution (CHS96, Eq. 3.22) of an open time
+    and the following shut time as proposed by Magleby & Song 1992. 
+    
+    Parameters
+    ----------
+    top, tsh : array_like of floats
+        Open and shut tims.
+    tres : float
+        Time resolution.
+    Q : array, shape (k,k)
+        Q matrix. 
+    QAA, QAF, QFF, QFA : array_like
+        Submatrices of Q.
+
+    Returns
+    -------
+    dependency : ndarray
+    """
+    
+    kA, kF = QAA.shape[0], QFF.shape[0]
+    uA = np.ones((kA))[:,np.newaxis]
+    uF = np.ones((kF))[:,np.newaxis]
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
+    GAF, GFA = qml.iGs(Q, kA, kF)
+    eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
+    eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
+    phiA = qml.phiHJC(eGAF, eGFA, kA)
+    phiF = qml.phiHJC(eGFA, eGAF, kF)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
+    FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
+    Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
+    FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
+    AZ00, AZ10, AZ11 = qml.Zxx(Q, eigs, A, kA, QFF, QAF, QFA, expQFF, True)
+    Aroots = asymptotic_roots(tres, QAA, QFF, QAF, QFA, kA, kF)
+    AR = qml.AR(Aroots, tres, QAA, QFF, QAF, QFA, kA, kF)
+
+    dependency = np.zeros((top.shape[0], tsh.shape[0]))
+    
+    for i in range(top.shape[0]):
+        eGAFt = qml.eGAF(top[i], tres, eigs, AZ00, AZ10, AZ11, Aroots,
+                AR, QAF, expQFF)
+        fo = np.dot(np.dot(phiA, eGAFt), uF)[0]
+        
+        for j in range(tsh.shape[0]):
+            eGFAt = qml.eGAF(tsh[j], tres, eigs, FZ00, FZ10, FZ11, Froots,
+                FR, QFA, expQAA)
+            fs = np.dot(np.dot(phiF, eGFAt), uA)[0]
+            fos = np.dot(np.dot(np.dot(phiA, eGAFt), eGFAt), uA)[0]
+            dependency[i, j] = (fos - (fo * fs)) / (fo * fs)
+    return dependency
+
+@deprecated("Use '...'")
+def HJC_adjacent_mean_open_to_shut_time_pdf(sht, tres, Q, QAA, QAF, QFF, QFA):
+    """
+    Calculate theoretical HJC (with missed events correction) mean open time
+    given previous/next gap length (continuous function; CHS96 Eq.3.5). 
+
+    Parameters
+    ----------
+    sht : array of floats
+        Shut time interval.
+    tres : float
+        Time resolution.
+    Q : array, shape (k,k)
+        Q matrix.
+    QAA, QAF, QFF, QFA : array_like
+        Submatrices of Q.
+
+    Returns
+    -------
+    mp : ndarray of floats
+        Mean open time given previous gap length.
+    mn : ndarray of floats
+        Mean open time given next gap length.
+    """
+    
+    kA, kF = QAA.shape[0], QFF.shape[0]
+    uA = np.ones((kA))[:,np.newaxis]
+    uF = np.ones((kF))[:,np.newaxis]
+    expQFF = qml.expQ(QFF, tres)
+    expQAA = qml.expQ(QAA, tres)
+    GAF, GFA = qml.iGs(Q, kA, kF)
+    eGAF = qml.eGs(GAF, GFA, kA, kF, expQFF)
+    eGFA = qml.eGs(GFA, GAF, kF, kA, expQAA)
+    phiA = qml.phiHJC(eGAF, eGFA, kA)
+    phiF = qml.phiHJC(eGFA, eGAF, kF)
+    DARS = qml.dARSdS(tres, QAA, QFF, GAF, GFA, expQFF, kA, kF)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-Q)
+    FZ00, FZ10, FZ11 = qml.Zxx(Q, eigs, A, kA, QAA, QFA, QAF, expQAA, False)
+    Froots = asymptotic_roots(tres, QFF, QAA, QFA, QAF, kF, kA)
+    FR = qml.AR(Froots, tres, QFF, QAA, QFA, QAF, kF, kA)
+    Q1 = np.dot(np.dot(DARS, QAF), expQFF)
+    col1 = np.dot(Q1, uF)
+    row1 = np.dot(phiA, Q1)
+    
+    mp = []
+    mn = []
+    for t in sht:
+        eGFAt = qml.eGAF(t, tres, eigs, FZ00, FZ10, FZ11, Froots,
+                    FR, QFA, expQAA)
+        denom = np.dot(np.dot(phiF, eGFAt), uA)[0]
+        nom1 = np.dot(np.dot(phiF, eGFAt), col1)[0]
+        nom2 = np.dot(np.dot(row1, eGFAt), uA)[0]
+        mp.append(nom1 / denom)
+        mn.append(nom2 / denom)
+    
+    return np.array(mp), np.array(mn)
+
+@deprecated("Use '...'")
+def adjacent_open_to_shut_range_pdf_components(u1, u2, QAA, QAF, QFF, QFA, phiA):
+    """
+    Calculate time constants and areas for an ideal (no missed events)
+    exponential probability density function of open times adjacent to a 
+    specified shut time range.
+
+    Parameters
+    ----------
+    t : float
+        Time (sec).
+    QAA : array_like, shape (kA, kA)
+        Submatrix of Q.
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings
+
+    Returns
+    -------
+    taus : ndarray, shape(k, 1)
+        Time constants.
+    areas : ndarray, shape(k, 1)
+        Component relative areas.
     """
 
-    str = ('\n*************************************\n' +
-        ' OPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE\n')
-    
-    kA = mec.kA
-    phiA = qml.phiA(mec).reshape((1,kA))
-    
-    str += ('PDF of open times that precede shut times between {0:.3f}\
- and {1:.3f} ms\n'.format(t1 * 1000, t2 * 1000))
-        
-    eigs, w = adjacent_open_to_shut_range_pdf_components(t1, t2, 
-        mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
-    str += pdfs.expPDF_printout(eigs, w)
+    kA = QAA.shape[0]
+    uA = np.ones((kA))[:,np.newaxis]
+    invQAA, invQFF = -nplin.inv(QAA), nplin.inv(QFF)
+    expQFFr = qml.expQ(QFF, u2) - qml.expQ(QFF, u1)
+    col = np.dot(np.dot(np.dot(np.dot(QAF, invQFF), expQFFr), QFA), uA)
+    w = np.zeros(kA)
+    eigs, A = qml.eigenvalues_and_spectral_matrices(-QAA)
+    row = np.dot(phiA, invQAA)
+    den = np.dot(row, col)[0, 0]
+    #TODO: remove 'for'
+    for i in range(kA):
+        w[i] = np.dot(np.dot(phiA, A[i]), col) / den
+    return eigs, w
 
-    mean = adjacent_open_to_shut_range_mean(t1, t2, 
-        mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
-    str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
-    return str
-
-#####################   DEPRECATED FUNCTIONS   #################################
 
 @deprecated("Use '...'")
 def ideal_popen(mec):
@@ -2180,3 +2340,190 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
         str += ('r({0:d}) = {1:.5g}\n'.format(i+1, ro))
     return str
 
+def printout_adjacent(mec, t1, t2):
+    """
+
+    """
+
+    str = ('\n*************************************\n' +
+        ' OPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE\n')
+    
+    kA = mec.kA
+    phiA = qml.phiA(mec).reshape((1,kA))
+    
+    str += ('PDF of open times that precede shut times between {0:.3f}\
+        and {1:.3f} ms\n'.format(t1 * 1000, t2 * 1000))
+        
+    eigs, w = adjacent_open_to_shut_range_pdf_components(t1, t2, 
+        mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
+    str += pdfs.expPDF_printout(eigs, w)
+
+    mean = adjacent_open_to_shut_range_mean(t1, t2, 
+        mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
+    str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
+    return str
+
+def correlation_coefficient(cov, var1, var2):
+    """
+    Correlation coefficient.
+
+    Parameters
+    ----------
+    cov : float
+        Covariance.
+    var1, var2 : floats
+        Variances.
+
+    Returns
+    -------
+    ro : float
+        Correlation coefficient.
+    """
+
+    ro = cov / sqrt(var1 * var2)
+    return ro
+
+def corr_variance_A(phiA, QAA, kA):
+    """
+    Calculate variance of open (shut) time according Eq. 2.6 (CH87).
+    To calculate variance of shut time function should be called with
+    parameters (phiF, QFF, kF).
+
+    Parameters
+    ----------
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings (shuttings).
+    QAA : array_like, shape (kA, kA)
+        AA submatrix of Q.
+    kA : int
+        Number of open (shut) states.
+
+    Returns
+    -------
+    var : float
+        Variance.
+    """
+
+    uA = np.ones((kA))[:,np.newaxis]
+    I = np.eye(kA)
+    invQAA = -nplin.inv(QAA)
+    M = 2 * I - np.dot(uA, phiA)
+    row = np.dot(phiA, invQAA)
+    col = np.dot(invQAA, uA)
+    var = np.dot(np.dot(row, M), col)[0,0]
+    return var
+
+def corr_covariance_A(lag, phiA, QAA, XAA, kA):
+    """
+    Calculate covariance of open (shut) time according CH87.
+    To calculate covariance of shut time function should be called with
+    parameters (phiF, QFF, XFF, kF).
+
+    Parameters
+    ----------
+    lag : int
+        Lag.
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings (shuttings).
+    QAA : array_like, shape (kA, kA)
+        AA submatrix of Q.
+    XAA : array_like, shape (kA, kA)
+        Product GAF * GFA.
+    kA : int
+        Number of open (shut) states.
+
+    Returns
+    -------
+    covar : float
+        Covariance.
+    """
+    
+    Xn = qml.Qpow(XAA, lag)
+    uA = np.ones((kA))[:,np.newaxis]
+    invQAA = -nplin.inv(QAA)
+    M2 = Xn - np.dot(uA, phiA)
+    row = np.dot(phiA, invQAA)
+    col = np.dot(invQAA, uA)
+    covar = np.dot(np.dot(row, M2), col)[0,0]
+    return covar
+
+def corr_covariance_AF(lag, phiA, QAA, QFF, XAA, GAF, kA, kF):
+    """
+    Calculate covariance of open and nth shut times according CH87.
+    
+    Parameters
+    ----------
+    lag : int
+        Lag.
+    phiA : array_like, shape (1, kA)
+        Initial vector for openings.
+    QAA : array_like, shape (kA, kA)
+        AA submatrix of Q.
+    QFF : array_like, shape (kF, kF)
+        FF submatrix of Q.
+    XAA : array_like, shape (kA, kA)
+        Product GAF * GFA.
+    GAF : array_like, shape (kA, kF)
+        GAF matrix.
+    kA : int
+        Number of open states.
+    kF : int
+        Number of shut states.
+
+    Returns
+    -------
+    covar : float
+        Covariance.
+    """
+
+    Xn = qml.Qpow(XAA, lag-1)
+    uA, uF = np.ones((kA))[:,np.newaxis], np.ones((kF))[:,np.newaxis]
+    invQAA, invQFF = -nplin.inv(QAA), -nplin.inv(QFF)
+    MAF = Xn - np.dot(uA, phiA)
+    row = np.dot(phiA, invQAA)
+    col = np.dot(np.dot(GAF, invQFF),uF)
+    covar = np.dot(np.dot(row, MAF), col)[0,0]
+    return covar
+
+def corr_decay_amplitude_A(phiA, QAA, XAA, kA):
+    """
+    Calculate scalar coefficients for correlation coefficien decay (Eq. 2.11,
+    CH83).
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    w : ndarray, shape (1, k)
+    eigs : ndarray, shape (1, k)
+    """
+    
+    varA = corr_variance_A(phiA, QAA, kA)
+    eigs, A = qml.eigs(XAA)
+
+    uA = np.ones((kA))[:,np.newaxis]
+    invQAA = -nplin.inv(QAA)
+    row = np.dot(phiA, invQAA)
+    col = np.dot(invQAA, uA)
+
+    ncA = np.rank(XAA) - 1
+    w = np.zeros((ncA))
+    n = 0
+    for i in range(kA):
+        if fabs(eigs[i]) > 1e-12 and fabs(eigs[i] - 1) > 1e-12:
+            w[n] = np.dot(np.dot(row, A[i, :, :]), col)[0,0] / varA
+            n += 1
+    return w, eigs
+
+def corr_limit_A(phiA, QAA, AXAA, eigXAA, kA):
+
+    uA = np.ones((kA))[:,np.newaxis]
+    invQAA = -nplin.inv(QAA)
+    row = np.dot(phiA, invQAA)
+    col = np.dot(invQAA, uA)
+    M = np.zeros((kA, kA))
+    for i in range(kA - 1):
+        M += AXAA[i,:,:] * eigXAA[i] / (1 - eigXAA[i])
+    cor = np.dot(np.dot(row, M), col)[0,0]
+    return cor

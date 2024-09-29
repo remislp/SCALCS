@@ -463,8 +463,7 @@ def phiSub(Q, k1, k2):
     """
 
     u = np.ones((k2 - k1 + 1, 1))
-    p = pinf(Q)
-    p1, p2, p3 = np.hsplit(p,(k1, k2+1))
+    p1, p2, p3 = np.hsplit(pinf(Q),(k1, k2+1))
     p1c = np.hstack((p1, p3))
 
     #Q = Q.copy()
@@ -474,8 +473,7 @@ def phiSub(Q, k1, k2):
     Q12 = np.vstack((Q21.transpose(), Q23.transpose()))
 
     nom = np.dot(p1c, Q12)
-    denom = np.dot(nom,u)
-    phi = nom / denom
+    phi = nom / (nom @ u)
     return phi, Q22c
 
 

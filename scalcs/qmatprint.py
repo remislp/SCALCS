@@ -8,6 +8,7 @@ from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
 from scalcs.scalcslib import SCDwells, SCCorrelations
+from scalcs.pdfs import TCrits
 
 class QMatrixPrints(QMatrix):
     '''
@@ -299,6 +300,22 @@ def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
                               tablefmt='orgtbl')       
     return info_str
 
+class TCritPrints(SCDwells):
+    def __init__(self, mec):
+        SCDwells.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
+        e, w = self.ideal_shut_time_pdf_components()
+        #print('eigs=', e)
+        #print('amps=', w)
+
+        self.tcrits = TCrits(1 / e, w / e)
+        #print('taus (ms) =', tcrits.taus * 1000)
+        #print('areas (%) =', tcrits.areas * 100)
+
+    @property
+    def print_all(self):
+        return self.tcrits.print_critical_times_summary()
+
+
 
 class SCDwellsPrints(SCDwells):
     '''
@@ -348,13 +365,7 @@ class SCDwellsPrints(SCDwells):
         e, w = self.ideal_open_time_pdf_components()
         info_str = (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
         return info_str
-
-    @property
-    def print_open_time_pdf(self):
-        e, w = self.ideal_open_time_pdf_components()
-        info_str = (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
-        return info_str
-    
+   
     @property
     def print_HJC_asymptotic_open_time_pdf(self):
 
@@ -390,7 +401,18 @@ class SCDwellsPrints(SCDwells):
         info_str = expPDF_asymptotic_printout(e, a, self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
         info_str += ('\nApparent mean shut time (ms) = {0:.5g}\n'.format(self.apparent_mean_shut_time * 1000))
         return info_str
+    
+    def print_adjacent_dwells(self, t1, t2):
+        
+        adjacent_str = ('\nPDF of open times that precede shut times between {0:.3f} and {1:.3f} ms'.
+                         format(t1 * 1000, t2 * 1000))
+        e, a = self.adjacent_open_to_shut_range_pdf_components(t1, t2)
+        adjacent_str += expPDF_printout(e, a, 'OPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE')
+        mean = self.adjacent_open_to_shut_range_mean(t1, t2) #     mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
+        adjacent_str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
+        return adjacent_str
 
+        
 
 class CorrelationPrints(SCCorrelations):
     """
@@ -486,3 +508,5 @@ class CorrelationPrints(SCCorrelations):
             open_shut_str += f"\nr({i+1}) = {self._coefficient(covAF, self.varA, self.varF):.5g}"
         
         return open_shut_str
+
+
