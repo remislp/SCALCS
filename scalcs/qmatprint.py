@@ -2,13 +2,13 @@ import sys
 from math import sqrt
 import numpy as np
 from tabulate import tabulate
-from numpy import linalg as nplin
+#from numpy import linalg as nplin
 
-from scalcs import qmatlib as qml
+#from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
 from scalcs.scalcslib import HJCDwells, SCCorrelations
-from scalcs.pdfs import TCrits
+from scalcs.pdfs import TCrits, ExpPDF
 
 class QMatrixPrints(QMatrix):
     """
@@ -75,7 +75,7 @@ class QMatrixPrints(QMatrix):
     @property
     def print_subset_probabilities(self):
         """Formatted initial probabilities and conditional probabilities for state subsets."""
-        info_str = (
+        return (
             f'\nInitial probabilities of finding channel in classes of states:\n'
             f'A states: P1(A) = {self.P("A"):.4g}\n'
             f'B states: P1(B) = {self.P("B"):.4g}\n'
@@ -87,7 +87,6 @@ class QMatrixPrints(QMatrix):
             f'P1(C|F) = {self.P("C|F"):.4g}\t\t'
             f'Probability of being in C if shut (in F) at t=0'
         )
-        return info_str
 
     @property
     def print_initial_vectors(self):
@@ -99,9 +98,7 @@ class QMatrixPrints(QMatrix):
 
     @property
     def print_DC_table(self):
-        """
-        Print DC table with open and shut state statistics, including mean lifetime and latency.
-        """
+        """ Print DC table with open and shut state statistics, including mean lifetime and latency. """
         
         mean_latencies = [self.mean_latency_given_start_state(i) for i in range(1, self.k+1)]
 
@@ -130,32 +127,28 @@ class QMatrixPrints(QMatrix):
                 mean_life_D = self.subset_mean_lifetime(self.kG+1, self.k)
                 DCtable_shut.append(['Subset D ', sum(self.pinf[self.kG: self.k]), mean_life_D * 1000, '-'])
             DCtable_shut.append([i+1, self.pinf[i], 1000*self.state_lifetimes()[i], 1000*mean_latencies[i]])
-
         dc_str += tabulate(DCtable_shut, headers=header_shut, tablefmt='orgtbl', floatfmt=(None, '.6f', '.6g', '.6g',))
         return dc_str
     
     @property
     def print_initial_vectors_for_openings_shuttings(self):
-        initial_str = ('\nInitial vector for ideal openings =\n')
-        #phiAi = qml.phiA(mec)
+        open_str = ('\nInitial vector for ideal openings =\n')
         for i in range(self.kA):
-            initial_str += ('\t{0:.5g}'.format(self.phiA[i]))
-        initial_str += ('\nInitial vector for ideal shuttings =\n')
-        #phiFi = qml.phiF(mec)
+            open_str += ('\t{0:.5g}'.format(self.phiA[i]))
+        shut_str = ('\nInitial vector for ideal shuttings =\n')
         for i in range(self.kF):
-            initial_str += ('\t{0:.5g}'.format(self.phiF[i]))
-        initial_str += '\n'
-        return initial_str
+            shut_str += ('\t{0:.5g}'.format(self.phiF[i]))
+        return open_str + shut_str + '\n'
     
     @property
     def print_open_time_pdf(self):
         e, w = self.ideal_open_time_pdf_components()
-        return (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
+        return ExpPDF(1/e, w/e).printout('\nIdeal open time PDF components, unconditional')
    
     @property
     def print_shut_time_pdf(self):
         e, w = self.ideal_shut_time_pdf_components()
-        return (expPDF_printout(e, w, '\nIdeal shut time, unconditional'))
+        return ExpPDF(1/e, w/e).printout('\nIdeal shut time PDF components, unconditional')
 
 
 class SCBurstPrints(SCBurst):

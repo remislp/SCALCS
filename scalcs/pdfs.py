@@ -1,13 +1,10 @@
 import math
 import sys
 from deprecated import deprecated
-
 import scipy.optimize as so
 import numpy as np
+from tabulate import tabulate
 
-
-import numpy as np
-import scipy.optimize as so
 
 class TCrits:
     """
@@ -268,9 +265,106 @@ class TCrits:
         return tcrit_str
 
 
-############################   FUNCTIONS TO REVIEW   ########################################
+class ExpPDF:
+    def __init__(self, taus, areas):
+        self.taus = taus
+        self.areas = areas
+        self.num_components = self.taus.shape[0]
+        self.mean = np.sum(self.areas * self.taus)
+        self.variance = np.sum(self.areas * self.taus * self.taus)
+        self.SD = np.sqrt(2 * self.variance - self.mean * self.mean)
+
+    def expPDF(self, t): #, tau, area):
+        """ Calculate exponential probability density function. """
+        if isinstance(self.taus, np.ndarray):
+            f = np.zeros(t.shape)
+            for i in range(self.taus.shape[0]):
+                f += (self.areas[i] / self.taus[i]) * np.exp(-t / self.taus[i])
+        else:
+            f = (self.areas / self.taus) * np.exp(-t / self.taus)
+        return f
+
+    def printout(self, title): #eigs, amps, title):
+        """ Print exponential PDF data.  """
+        header = ['Term', 'Amplitude', 'Rate (1/sec)', 'tau (ms)', 'Area (%)']
+        table = [ [i+1, self.areas[i] / self.taus[i], 1 / self.taus[i], 1000 * self.taus[i], 100 * self.areas[i]]
+            for i in range(self.num_components) ]
+        table_str = f'\n{title}\n' + tabulate( table, headers=header, tablefmt='orgtbl' )
+        mean_str = f'\nMean (ms) = {self.mean * 1000:.5g}\t\tSD = {self.SD * 1000:.5g}\t\tSD/mean = {self.SD / self.mean:.5g}\n'
+        return table_str + mean_str
 
 
+class GeometricPDF:
+    def __init__(self, rho, w):
+        self.rho = rho
+        self.w = w
+        self.k = self.rho.shape[0]
+        self.ONE = np.ones(self.k)
+        self.norm = 1 / (self.ONE - self.rho)
+        self.mean = np.sum(self.w / np.power(self.ONE - self.rho, 2))
+        self.variance = np.sum(self.w * (self.ONE + self.rho) / np.power(self.ONE - self.rho, 3))
+        self.SD = np.sqrt(self.variance - self.mean * self.mean)
+
+    def printout(self, title): #rho, w, title):
+        """ Print geometric PDF data. """
+        
+        header = ['Term', 'w', 'rho', 'area(%)', 'Norm mean']
+        table = [
+            [i+1, self.w[i], self.rho[i], 100 * self.w[i] * self.norm[i], self.norm[i]]
+            for i in range(self.num_components) ]
+        table_str = f'\n{title}\n' + tabulate(table, headers=header, tablefmt='orgtbl')
+        mean_str = f'\nMean number of openings per burst = {self.mean:.5g}\n\tSD = {self.SD:.5g}\tSD/mean = {self.SD / self.mean:.5g}\n'
+        return table_str + mean_str
+
+
+###############   DEPRECATED FUNCTIONS   ###########################
+
+def geometricPDF_mean_sd(rho, w):
+    """
+    Calculate mean and standard deviation for geometric PDF.
+
+    Parameters
+    ----------
+    rho : ndarray, shape(k, 1)
+        Probabilities.
+    w : ndarray, shape(k, 1)
+        Component amplitudes.
+
+    Returns
+    -------
+    m : float
+        Mean.
+    sd : float
+        Standard deviation.
+    """
+
+    k = rho.shape[0]
+    m = np.sum(w / np.power(np.ones((k)) - rho, 2))
+    var = np.sum(w * (np.ones((k)) + rho) / np.power(np.ones((k)) - rho, 3))
+    sd = math.sqrt(var - m * m)
+
+    return m, sd
+
+def geometricPDF_printout(rho, w):
+    """
+    """
+
+    norm = 1 / (np.ones((rho.shape[0])) - rho)
+    str = ('term\tw\trho\tarea(%)\tNorm mean')
+    for i in range(rho.shape[0]):
+        str += ('{0:d}'.format(i+1) +
+            '\t{0:.5g}'.format(w[i]) +
+            '\t{0:.5g}'.format(rho[i]) +
+            '\t{0:.5g}'.format(w[i] * norm[i] * 100) +
+            '\t{0:.5g}\n'.format(norm[i]))
+
+    mean, sd = geometricPDF_mean_sd(rho, w)
+    str += ('Mean number of openings per burst =\t {0:.5g}'.format(mean) +
+        '\n\tSD =\t {0:.5g}'.format(sd) +
+        '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
+    return str
+
+@deprecated("Use '...'")
 def expPDF(t, tau, area):
     """
     Calculate exponential probabolity density function.
@@ -299,6 +393,7 @@ def expPDF(t, tau, area):
         f = (area / tau) * np.exp(-t / tau)
     return f
 
+@deprecated("Use '...'")
 def expPDF_mean_sd(tau, area):
     """
     Calculate mean and standard deviation for exponential PDF.
@@ -324,6 +419,7 @@ def expPDF_mean_sd(tau, area):
 
     return m, sd
 
+@deprecated("Use '...'")
 def expPDF_printout(eigs, ampl):
     """
     """
@@ -410,47 +506,3 @@ def expPDF_tcrit_Jackson(tcrit, tau, area, comp):
 
     return enf - ens
 
-def geometricPDF_mean_sd(rho, w):
-    """
-    Calculate mean and standard deviation for geometric PDF.
-
-    Parameters
-    ----------
-    rho : ndarray, shape(k, 1)
-        Probabilities.
-    w : ndarray, shape(k, 1)
-        Component amplitudes.
-
-    Returns
-    -------
-    m : float
-        Mean.
-    sd : float
-        Standard deviation.
-    """
-
-    k = rho.shape[0]
-    m = np.sum(w / np.power(np.ones((k)) - rho, 2))
-    var = np.sum(w * (np.ones((k)) + rho) / np.power(np.ones((k)) - rho, 3))
-    sd = math.sqrt(var - m * m)
-
-    return m, sd
-
-def geometricPDF_printout(rho, w):
-    """
-    """
-
-    norm = 1 / (np.ones((rho.shape[0])) - rho)
-    str = ('term\tw\trho\tarea(%)\tNorm mean')
-    for i in range(rho.shape[0]):
-        str += ('{0:d}'.format(i+1) +
-            '\t{0:.5g}'.format(w[i]) +
-            '\t{0:.5g}'.format(rho[i]) +
-            '\t{0:.5g}'.format(w[i] * norm[i] * 100) +
-            '\t{0:.5g}\n'.format(norm[i]))
-
-    mean, sd = geometricPDF_mean_sd(rho, w)
-    str += ('Mean number of openings per burst =\t {0:.5g}'.format(mean) +
-        '\n\tSD =\t {0:.5g}'.format(sd) +
-        '\tSD/mean =\t {0:.5g}\n'.format(sd / mean))
-    return str
