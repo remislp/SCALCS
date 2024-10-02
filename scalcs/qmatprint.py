@@ -7,31 +7,33 @@ from numpy import linalg as nplin
 from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
-from scalcs.scalcslib import SCDwells, SCCorrelations
+from scalcs.scalcslib import HJCDwells, SCCorrelations
 from scalcs.pdfs import TCrits
 
 class QMatrixPrints(QMatrix):
-    '''
-    Print Q-Matrix stuff.
-    '''
+    """
+    Print Q-Matrix data, including equilibrium occupancies, transition matrices,
+    and PDF components for open and shut times.
+    """
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         # Initialize the QMatrix instance.
-        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
     @property
     def print_Q(self):
         q_mat_str = '\nQ (units [1/s]) = \n'
-        q_mat_str += tabulate((['{:.3f}\t'.format(item) for item in row]
-                              for row in self.Q), 
-                              headers=[i+1 for i in range(self.k)], 
-                              showindex=[i+1 for i in range(self.k)],
-                              tablefmt='orgtbl')       
+        q_mat_str += tabulate(
+            ([f'{item:.3f}' for item in row] for row in self.Q),
+            headers=[i+1 for i in range(self.k)],
+            showindex=[i+1 for i in range(self.k)],
+            tablefmt='orgtbl'
+        )    
         return q_mat_str
 
     @property
     def print_pinf(self):
-        pinf_str = '\nEquilibrium state occupancies:'
+        pinf_str = '\nEquilibrium state occupancies:\n'
         pinf_str += tabulate([self.pinf], headers=[i+1 for i in range(self.k)], tablefmt='orgtbl' )
         return pinf_str
 
@@ -41,71 +43,72 @@ class QMatrixPrints(QMatrix):
 
     @property
     def print_state_lifetimes(self):
-        lifetimes_str = '\nMean lifetimes of each individual state (ms):'
+        lifetimes_str = '\nMean lifetimes of each individual state (ms):\n'
         lifetimes_str += tabulate([1000 / self.state_lifetimes()], headers=[i+1 for i in range(self.k)], tablefmt='orgtbl' )
         return lifetimes_str
 
     @property
     def print_transition_matrices(self):
         """
-        Print the transition probabilities and frequencies.
+        Print transition probabilities and frequencies.
         """
         pi = self.transition_probability()
         fi = self.transition_frequency()
 
-        info_str = "\n\nProbability of transitions regardless of time:\n"
-        info_str += tabulate((['{:.4f}\t'.format(item) for item in row] for row in pi), 
-                              headers=[i+1 for i in range(self.k)], 
-                              showindex=[i+1 for i in range(self.k)],
-                              tablefmt='orgtbl')       
+        prob_str = "\n\nProbability of transitions regardless of time:\n"
+        prob_str += tabulate(
+            ([f'{item:.4f}' for item in row] for row in pi),
+            headers=[i+1 for i in range(self.k)],
+            showindex=[i+1 for i in range(self.k)],
+            tablefmt='orgtbl'
+        )
 
-        info_str += "\n\nFrequency of transitions (per second):\n"
-        info_str += tabulate((['{:.4f}\t'.format(item) for item in row] for row in fi), 
-                              headers=[i+1 for i in range(self.k)], 
-                              showindex=[i+1 for i in range(self.k)],
-                              tablefmt='orgtbl')
-        return info_str
+        freq_str = "\n\nFrequency of transitions (per second):\n"
+        freq_str += tabulate(
+            ([f'{item:.4f}' for item in row] for row in fi),
+            headers=[i+1 for i in range(self.k)],
+            showindex=[i+1 for i in range(self.k)],
+            tablefmt='orgtbl'
+        )
+        return prob_str + freq_str
 
     @property
     def print_subset_probabilities(self):
-
         info_str = '\nInitial probabilities of finding channel in classes of states:'
-        info_str += '\nA states: P1(A)= {:.4g}'.format(self.P('A'))
-        info_str += '\nB states: P1(B)= {:.4g}'.format(self.P('B'))
-        info_str += '\nC states: P1(C)= {:.4g}'.format(self.P('C'))
-        info_str += '\nF states: P1(F)= {:.4g}'.format(self.P('F'))
+        info_str += f'\nA states: P1(A)= {self.P("A"):.4g}'
+        info_str += f'\nB states: P1(B)= {self.P("B"):.4g}'
+        info_str += f'\nC states: P1(C)= {self.P("C"):.4g}'
+        info_str += f'\nF states: P1(F)= {self.P("F"):.4g}'
 
         info_str += '\n\nConditional probabilities:'
-        info_str += '\nP1(B|F)= {:.4g}'.format(self.P('B|F')) + '\t\tOf channels that a shut (in F) at t=0, probability being in B'
-        info_str += '\nP1(C|F)= {:.4g}'.format(self.P('C|F')) + '\t\tOf channels that a shut (in F) at t=0, probability being in C'
+        info_str += f'\nP1(B|F)= {self.P("B|F"):.4g}\t\tProbability of being in B if shut (in F) at t=0'
+        info_str += f'\nP1(C|F)= {self.P("C|F"):.4g}\t\tProbability of being in C if shut (in F) at t=0'
 
         return info_str
 
     @property
     def print_initial_vectors(self):
-        info_str = '\nInitial vectors (conditional probability distribution over a subset of states):'
-        info_str += '\nphi(A)= {}'.format(self.phi('A'))
-        info_str += '\nphi(B)= {}'.format(self.phi('B'))
-        info_str += '\nphi(F)= {}'.format(self.phi('F'))
+        info_str = '\nInitial vectors (conditional probability distribution over subsets of states):'
+        info_str += f'\nphi(A)= {self.phi("A")}'
+        info_str += f'\nphi(B)= {self.phi("B")}'
+        info_str += f'\nphi(F)= {self.phi("F")}'
         return info_str
 
     @property
     def print_DC_table(self):
         """
+        Print DC table with open and shut state statistics, including mean lifetime and latency.
         """
         
-        mean_latencies = []
-        for i in range(1, self.k+1):
-            mean_latencies.append(self.mean_latency_given_start_state(i))
+        mean_latencies = [self.mean_latency_given_start_state(i) for i in range(1, self.k+1)]
 
         dc_str = '\n'
         header_open = ['Open \nstates', 'Equilibrium\n occupancy', 'Mean lifetime\n (ms)',
                        'Mean latency (ms)\nto next shutting\ngiven start \nin this state']
         DCtable_open = []
+        mean_life_A = self.subset_mean_lifetime(1, self.kA)
+        DCtable_open.append(['Subset A ', sum(self.pinf[:self.kA]), mean_life_A * 1000, ' '])
         for i in range(self.kA):
-            if i == 0:
-                mean_life_A = self.subset_mean_lifetime(i+1, self.kA)
-                DCtable_open.append(['Subset A ', sum(self.pinf[:self.kA]), mean_life_A * 1000, ' '])
             DCtable_open.append([i+1, self.pinf[i], 1000*self.state_lifetimes()[i], 1000*mean_latencies[i]])
 
         dc_str += (tabulate(DCtable_open, headers=header_open, tablefmt='orgtbl', floatfmt=".6f") + '\n\n')
@@ -127,6 +130,30 @@ class QMatrixPrints(QMatrix):
 
         dc_str += tabulate(DCtable_shut, headers=header_shut, tablefmt='orgtbl', floatfmt=(None, '.6f', '.6g', '.6g',))
         return dc_str
+    
+    @property
+    def print_initial_vectors_for_openings_shuttings(self):
+        initial_str = ('\nInitial vector for ideal openings =\n')
+        #phiAi = qml.phiA(mec)
+        for i in range(self.kA):
+            initial_str += ('\t{0:.5g}'.format(self.phiA[i]))
+        initial_str += ('\nInitial vector for ideal shuttings =\n')
+        #phiFi = qml.phiF(mec)
+        for i in range(self.kF):
+            initial_str += ('\t{0:.5g}'.format(self.phiF[i]))
+        initial_str += '\n'
+        return initial_str
+    
+    @property
+    def print_open_time_pdf(self):
+        e, w = self.ideal_open_time_pdf_components()
+        return (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
+   
+    @property
+    def print_shut_time_pdf(self):
+        e, w = self.ideal_shut_time_pdf_components()
+        return (expPDF_printout(e, w, '\nIdeal shut time, unconditional'))
+
 
 class SCBurstPrints(SCBurst):
     """
@@ -300,9 +327,9 @@ def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
                               tablefmt='orgtbl')       
     return info_str
 
-class TCritPrints(SCDwells):
+class TCritPrints(QMatrix):
     def __init__(self, mec):
-        SCDwells.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
+        QMatrix.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
         e, w = self.ideal_shut_time_pdf_components()
         #print('eigs=', e)
         #print('amps=', w)
@@ -317,13 +344,13 @@ class TCritPrints(SCDwells):
 
 
 
-class SCDwellsPrints(SCDwells):
+class HJCDwellsPrints(HJCDwells):
     '''
     Print Q-Matrix stuff.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
-        SCDwells.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        HJCDwells.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
     @property
     def print_all(self):
@@ -337,19 +364,6 @@ class SCDwellsPrints(SCDwells):
         return all_str
 
     @property
-    def print_initial_vectors(self):
-        initial_str = ('\nInitial vector for ideal openings =\n')
-        #phiAi = qml.phiA(mec)
-        for i in range(self.kA):
-            initial_str += ('\t{0:.5g}'.format(self.phiA[i]))
-        initial_str += ('\nInitial vector for ideal shuttings =\n')
-        #phiFi = qml.phiF(mec)
-        for i in range(self.kF):
-            initial_str += ('\t{0:.5g}'.format(self.phiF[i]))
-        initial_str += '\n'
-        return initial_str
-
-    @property
     def print_initial_HJC_vectors(self):
         initial_str = ('\nInitial vector for HJC openings (tres={0:.0f} us) =\n'.format(1e6 * self.tres))
         for i in range(self.kA):
@@ -360,12 +374,6 @@ class SCDwellsPrints(SCDwells):
         initial_str += '\n'
         return initial_str
 
-    @property
-    def print_open_time_pdf(self):
-        e, w = self.ideal_open_time_pdf_components()
-        info_str = (expPDF_printout(e, w, '\nIdeal open time, unconditional'))
-        return info_str
-   
     @property
     def print_HJC_asymptotic_open_time_pdf(self):
 
@@ -389,12 +397,6 @@ class SCDwellsPrints(SCDwells):
         return info_str
 
     @property
-    def print_shut_time_pdf(self):
-        e, w = self.ideal_shut_time_pdf_components()
-        info_str = (expPDF_printout(e, w, '\nIdeal shut time, unconditional'))
-        return info_str
-
-    @property
     def print_HJC_asymptotic_shut_time_pdf(self):
 
         e, a = self.HJC_asymptotic_shut_time_pdf_components()
@@ -402,6 +404,7 @@ class SCDwellsPrints(SCDwells):
         info_str += ('\nApparent mean shut time (ms) = {0:.5g}\n'.format(self.apparent_mean_shut_time * 1000))
         return info_str
     
+    #TODO: move this function into 'adjacent dwells' class
     def print_adjacent_dwells(self, t1, t2):
         
         adjacent_str = ('\nPDF of open times that precede shut times between {0:.3f} and {1:.3f} ms'.

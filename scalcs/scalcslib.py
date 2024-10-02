@@ -52,17 +52,15 @@ from scalcs import pdfs
 
 from scalcs.qmatlib import QMatrix
 
-class SCDwells(QMatrix):
+class HJCDwells(QMatrix):
     '''
-    Print Q-Matrix stuff.
+    Print HJC distributions stuff.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         # Initialize the QMatrix instance.
         QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
-        self.GAF = qml.GXY(self.QAA, self.QAF) 
-        self.GFA = qml.GXY(self.QFF, self.QFA)
         #self.tres = tres
         
     @property
@@ -76,81 +74,12 @@ class SCDwells(QMatrix):
         self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
         self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
 
-    def ideal_open_time_pdf_components(self):
-        """
-        Calculate time constants and areas for an ideal (no missed events)
-        exponential open time probability density function.
-
-        Returns
-        -------
-        eigs : ndarray, shape(k, 1)
-            Eigenvalues.
-        areas : ndarray, shape(k, 1)
-            Component relative areas.
-        """
-        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
-        w = np.zeros(self.kA)
-        #TODO: remove 'for'
-        for i in range(self.kA):
-            w[i] = np.dot(np.dot(np.dot(self.phiA, A[i]), (-self.QAA)), self.uA)[0]
-        return eigs, w
-
-    def ideal_shut_time_pdf_components(self):
-        """
-        Calculate time constants and areas for an ideal (no missed events)
-        exponential open time probability density function.
-
-        Returns
-        -------
-        eigs : ndarray, shape(k, 1)
-            Eigenvalues.
-        areas : ndarray, shape(k, 1)
-            Component relative areas.
-        """
-        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QFF)
-        w = np.zeros(self.kF)
-        #TODO: remove 'for'
-        for i in range(self.kF):
-            w[i] = np.dot(np.dot(np.dot(self.phiF, A[i]), (-self.QFF)), self.uF)[0]
-        return eigs, w
-
-    def ideal_dwell_time_pdf(self, t, open=True):
-        """
-        Probability density function of the open time.
-        f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
-
-        Parameters
-        ----------
-        t : float
-            Time (sec).
-
-        Returns
-        -------
-        f : float
-        """
-
-        phiX = self.phiA if open else self.phiF
-        QXX = self.QAA if open else self.QFF
-        u = self.uA if open else self.uF
-        expQXX = qml.expQ(self.QAA, t) if open else qml.expQ(self.QFF, t)
-        return phiX @ expQXX @ -QXX @ u
-
-
-    def ideal_subset_time_pdf(self, Q, k1, k2, t):
-        """        
-        """
-        
-        u = np.ones((k2 - k1 + 1, 1))
-        phi, QSub = qml.phiSub(Q, k1, k2)
-        expQSub = qml.expQ(QSub, t)
-        return phi @ expQSub @ -QSub @ u
-
     @property
-    def apparentPopen(self): #eGAF, eGFA, kA):
+    def apparentPopen(self):
          return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
 
     @property
-    def HJCphiA(self): #eGAF, eGFA, kA):
+    def HJCphiA(self): 
         """
         Calculate initial HJC vector for openings by solving
         phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)
@@ -648,12 +577,12 @@ class SCDwells(QMatrix):
         else:
             C00 = A[ : , self.kA :   , self.kA :   ]
             A1  = A[ : , self.kA :   ,    : self.kA]
-        D = np.dot(np.dot(A1, expQyy), Qyx)
+        D = A1 @ expQyy @ Qyx
 
         C11 = np.empty((self.k, kx, kx))
         #TODO: try to remove 'for' cycles
         for i in range(self.k):
-            C11[i] = np.dot(D[i], C00[i])
+            C11[i] = D[i] @ C00[i]
         # Vectorized computation of C11 (Eq. 3.18, HJC90) Does not work
 #        C11 = np.einsum('ijk,ilk->ijl', D, C00)
 
@@ -661,7 +590,7 @@ class SCDwells(QMatrix):
         C10 = np.empty((self.k, kx, kx))
         for i in range(self.k):
             S = sum(
-                (np.dot(D[i], C00[j]) + np.dot(D[j], C00[i])) / (eigs[j] - eigs[i])
+                ((D[i] @ C00[j]) + (D[j] @ C00[i])) / (eigs[j] - eigs[i])
                 for j in range(self.k) if j != i
             )
             C10[i] = S
@@ -679,6 +608,91 @@ class SCDwells(QMatrix):
         return eigs, Z00, Z10, Z11
 
 
+
+class SCDwells(QMatrix):
+    '''
+    Print dwell time ideal distributions.
+    '''
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        # Initialize the QMatrix instance.
+        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+
+        self.GAF = qml.GXY(self.QAA, self.QAF) 
+        self.GFA = qml.GXY(self.QFF, self.QFA)
+        
+
+    def ideal_open_time_pdf_components(self):
+        """
+        Calculate time constants and areas for an ideal (no missed events)
+        exponential open time probability density function.
+
+        Returns
+        -------
+        eigs : ndarray, shape(k, 1)
+            Eigenvalues.
+        areas : ndarray, shape(k, 1)
+            Component relative areas.
+        """
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
+        w = np.zeros(self.kA)
+        #TODO: remove 'for'
+        for i in range(self.kA):
+            w[i] = np.dot(np.dot(np.dot(self.phiA, A[i]), (-self.QAA)), self.uA)[0]
+        return eigs, w
+
+    def ideal_shut_time_pdf_components(self):
+        """
+        Calculate time constants and areas for an ideal (no missed events)
+        exponential open time probability density function.
+
+        Returns
+        -------
+        eigs : ndarray, shape(k, 1)
+            Eigenvalues.
+        areas : ndarray, shape(k, 1)
+            Component relative areas.
+        """
+        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QFF)
+        w = np.zeros(self.kF)
+        #TODO: remove 'for'
+        for i in range(self.kF):
+            w[i] = np.dot(np.dot(np.dot(self.phiF, A[i]), (-self.QFF)), self.uF)[0]
+        return eigs, w
+
+    def ideal_dwell_time_pdf(self, t, open=True):
+        """
+        Probability density function of the open time.
+        f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
+
+        Parameters
+        ----------
+        t : float
+            Time (sec).
+
+        Returns
+        -------
+        f : float
+        """
+
+        phiX = self.phiA if open else self.phiF
+        QXX = self.QAA if open else self.QFF
+        u = self.uA if open else self.uF
+        expQXX = qml.expQ(self.QAA, t) if open else qml.expQ(self.QFF, t)
+        return phiX @ expQXX @ -QXX @ u
+
+
+    def ideal_subset_time_pdf(self, Q, k1, k2, t):
+        """        
+        """
+        
+        u = np.ones((k2 - k1 + 1, 1))
+        phi, QSub = qml.phiSub(Q, k1, k2)
+        expQSub = qml.expQ(QSub, t)
+        return phi @ expQSub @ -QSub @ u
+
+
+
     def adjacent_open_to_shut_range_mean(self, u1, u2): #, QAA, QAF, QFF, QFA, phiA):
         """
         Calculate mean (ideal- no missed events) open times adjacent to a specified shut time range.
@@ -694,15 +708,14 @@ class SCDwells(QMatrix):
             Mean open time.
         """
         
-        #kA = QAA.shape[0]
         uA = np.ones((self.kA))[:,np.newaxis]
         phiAr = self.phiA.reshape(1, self.kA)
         invQAA, invQFF = -nplin.inv(self.QAA), nplin.inv(self.QFF)
         expQFFr = qml.expQ(self.QFF, u2) - qml.expQ(self.QFF, u1)
-        col = np.dot(np.dot(np.dot(np.dot(self.QAF, invQFF), expQFFr), self.QFA), uA)
-        row1 = np.dot(phiAr, qml.Qpow(invQAA, 2))
-        row2 = np.dot(phiAr, invQAA)
-        m = np.dot(row1, col)[0, 0] / np.dot(row2, col)[0, 0]
+        col = self.QAF @ invQFF @ expQFFr @ self.QFA @ uA
+        row1 = phiAr @ qml.Qpow(invQAA, 2)
+        row2 = phiAr @ invQAA
+        m = (row1 @ col)[0, 0] / (row2 @ col)[0, 0]
         return m
 
     def adjacent_open_to_shut_range_pdf_components(self, u1, u2): #, QAA, QAF, QFF, QFA, phiA):
@@ -757,11 +770,8 @@ class SCDwells(QMatrix):
             Mean open time given next gap length.
         """
         
-        #kA, kF = QAA.shape[0], QFF.shape[0]
         uA = np.ones((self.kA))[:,np.newaxis]
         uF = np.ones((self.kF))[:,np.newaxis]
-        #expQFF = qml.expQ(self.QFF, self.tres)
-        #expQAA = qml.expQ(self.QAA, self.tres)
         DARS = self.dARSdS()
         eigs, A = qml.eigenvalues_and_spectral_matrices(-self.Q)
         FZ00, FZ10, FZ11 = self.Zxx(open=False)
@@ -778,7 +788,6 @@ class SCDwells(QMatrix):
             mp.append((self.HJCphiF @ eGFAt @ col1)[0] / denom)
             mn.append((row1 @ eGFAt @ uA)[0] / denom)
         return np.array(mp), np.array(mn)
-
 
     def HJC_dependency(self, top, tsh):
         """
@@ -946,14 +955,7 @@ class SCCorrelations(QMatrix):
         
         return w, eigs
 
-
-
-
-
 ############################   FUNCTIONS TO REVIEW   ########################################
-
-
-
 
 def asymptotic_pdf(t, tres, tau, area):
     """
@@ -980,8 +982,6 @@ def asymptotic_pdf(t, tres, tau, area):
     apdf = np.append(t1 * 0.0, apdf2)
 
     return apdf
-
-
 
 def exact_pdf(t, tres, roots, areas, eigvals, gamma00, gamma10, gamma11):
     r"""
@@ -2233,7 +2233,7 @@ def ideal_dwell_time_pdf_components(QAA, phiA):
 
     return eigs, w
 
-
+@deprecated("Use '...'")
 def printout_correlations(mec, output=sys.stdout, eff='c'):
     """
 
@@ -2340,6 +2340,7 @@ def printout_correlations(mec, output=sys.stdout, eff='c'):
         str += ('r({0:d}) = {1:.5g}\n'.format(i+1, ro))
     return str
 
+@deprecated("Use '...'")
 def printout_adjacent(mec, t1, t2):
     """
 
@@ -2363,6 +2364,7 @@ def printout_adjacent(mec, t1, t2):
     str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
     return str
 
+@deprecated("Use '...'")
 def correlation_coefficient(cov, var1, var2):
     """
     Correlation coefficient.
@@ -2383,6 +2385,7 @@ def correlation_coefficient(cov, var1, var2):
     ro = cov / sqrt(var1 * var2)
     return ro
 
+@deprecated("Use '...'")
 def corr_variance_A(phiA, QAA, kA):
     """
     Calculate variance of open (shut) time according Eq. 2.6 (CH87).
@@ -2413,6 +2416,7 @@ def corr_variance_A(phiA, QAA, kA):
     var = np.dot(np.dot(row, M), col)[0,0]
     return var
 
+@deprecated("Use '...'")
 def corr_covariance_A(lag, phiA, QAA, XAA, kA):
     """
     Calculate covariance of open (shut) time according CH87.
@@ -2447,6 +2451,7 @@ def corr_covariance_A(lag, phiA, QAA, XAA, kA):
     covar = np.dot(np.dot(row, M2), col)[0,0]
     return covar
 
+@deprecated("Use '...'")
 def corr_covariance_AF(lag, phiA, QAA, QFF, XAA, GAF, kA, kF):
     """
     Calculate covariance of open and nth shut times according CH87.
@@ -2485,6 +2490,7 @@ def corr_covariance_AF(lag, phiA, QAA, QFF, XAA, GAF, kA, kF):
     covar = np.dot(np.dot(row, MAF), col)[0,0]
     return covar
 
+@deprecated("Use '...'")
 def corr_decay_amplitude_A(phiA, QAA, XAA, kA):
     """
     Calculate scalar coefficients for correlation coefficien decay (Eq. 2.11,
@@ -2516,6 +2522,7 @@ def corr_decay_amplitude_A(phiA, QAA, XAA, kA):
             n += 1
     return w, eigs
 
+@deprecated("Use '...'")
 def corr_limit_A(phiA, QAA, AXAA, eigXAA, kA):
 
     uA = np.ones((kA))[:,np.newaxis]
