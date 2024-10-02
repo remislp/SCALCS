@@ -12,46 +12,46 @@ from scalcs.pdfs import TCrits
 
 class QMatrixPrints(QMatrix):
     """
-    Print Q-Matrix data, including equilibrium occupancies, transition matrices,
+    Provides printable representations of Q-matrix properties and related calculations, including equilibrium occupancies, transition matrices,
     and PDF components for open and shut times.
     """
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
-        # Initialize the QMatrix instance.
+        # Initialize the QMatrix superclass.
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
     @property
     def print_Q(self):
-        q_mat_str = '\nQ (units [1/s]) = \n'
-        q_mat_str += tabulate(
-            ([f'{item:.3f}' for item in row] for row in self.Q),
-            headers=[i+1 for i in range(self.k)],
-            showindex=[i+1 for i in range(self.k)],
+        """Formatted Q-matrix with appropriate headers."""
+        return '\nQ (units [1/s]) = \n' + tabulate(
+            [['{:.3f}'.format(item) for item in row] for row in self.Q],
+            headers=[i + 1 for i in range(self.k)],
+            showindex=[i + 1 for i in range(self.k)],
             tablefmt='orgtbl'
         )    
-        return q_mat_str
 
     @property
     def print_pinf(self):
-        pinf_str = '\nEquilibrium state occupancies:\n'
-        pinf_str += tabulate([self.pinf], headers=[i+1 for i in range(self.k)], tablefmt='orgtbl' )
-        return pinf_str
+        """Formatted equilibrium state occupancies."""
+        return '\nEquilibrium state occupancies:\n' + tabulate([self.pinf], 
+            headers=[i + 1 for i in range(self.k)], tablefmt='orgtbl')
 
     @property
     def print_Popen(self):
-        return '\nEquilibrium open probability Popen = {0:.6f}'.format(self.Popen())
+        """Formatted equilibrium open probability."""
+        return f'\nEquilibrium open probability Popen = {self.Popen():.6f}'
 
     @property
     def print_state_lifetimes(self):
-        lifetimes_str = '\nMean lifetimes of each individual state (ms):\n'
-        lifetimes_str += tabulate([1000 / self.state_lifetimes()], headers=[i+1 for i in range(self.k)], tablefmt='orgtbl' )
-        return lifetimes_str
+        """Formatted mean lifetimes of each individual state in milliseconds."""
+        return '\nMean lifetimes of each individual state (ms):\n' + tabulate(
+            [[1000 / lifetime for lifetime in self.state_lifetimes()]],
+            headers=[i + 1 for i in range(self.k)], 
+            tablefmt='orgtbl')
 
     @property
     def print_transition_matrices(self):
-        """
-        Print transition probabilities and frequencies.
-        """
+        """Formatted transition probabilities and frequencies."""
         pi = self.transition_probability()
         fi = self.transition_frequency()
 
@@ -74,25 +74,28 @@ class QMatrixPrints(QMatrix):
 
     @property
     def print_subset_probabilities(self):
-        info_str = '\nInitial probabilities of finding channel in classes of states:'
-        info_str += f'\nA states: P1(A)= {self.P("A"):.4g}'
-        info_str += f'\nB states: P1(B)= {self.P("B"):.4g}'
-        info_str += f'\nC states: P1(C)= {self.P("C"):.4g}'
-        info_str += f'\nF states: P1(F)= {self.P("F"):.4g}'
-
-        info_str += '\n\nConditional probabilities:'
-        info_str += f'\nP1(B|F)= {self.P("B|F"):.4g}\t\tProbability of being in B if shut (in F) at t=0'
-        info_str += f'\nP1(C|F)= {self.P("C|F"):.4g}\t\tProbability of being in C if shut (in F) at t=0'
-
+        """Formatted initial probabilities and conditional probabilities for state subsets."""
+        info_str = (
+            f'\nInitial probabilities of finding channel in classes of states:\n'
+            f'A states: P1(A) = {self.P("A"):.4g}\n'
+            f'B states: P1(B) = {self.P("B"):.4g}\n'
+            f'C states: P1(C) = {self.P("C"):.4g}\n'
+            f'F states: P1(F) = {self.P("F"):.4g}\n\n'
+            'Conditional probabilities:\n'
+            f'P1(B|F) = {self.P("B|F"):.4g}\t\t'
+            f'Probability of being in B if shut (in F) at t=0\n'
+            f'P1(C|F) = {self.P("C|F"):.4g}\t\t'
+            f'Probability of being in C if shut (in F) at t=0'
+        )
         return info_str
 
     @property
     def print_initial_vectors(self):
-        info_str = '\nInitial vectors (conditional probability distribution over subsets of states):'
-        info_str += f'\nphi(A)= {self.phi("A")}'
-        info_str += f'\nphi(B)= {self.phi("B")}'
-        info_str += f'\nphi(F)= {self.phi("F")}'
-        return info_str
+        """Formatted initial vectors for state subsets."""
+        return ('\nInitial vectors (conditional probability distribution over a subset of states):\n'
+            f'phi(A) = {self.phi("A")}\n'
+            f'phi(B) = {self.phi("B")}\n'
+            f'phi(F) = {self.phi("F")}')
 
     @property
     def print_DC_table(self):
