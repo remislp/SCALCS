@@ -8,7 +8,7 @@ from tabulate import tabulate
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
 from scalcs.scalcslib import HJCDwells, SCCorrelations
-from scalcs.pdfs import TCrits, ExpPDF
+from scalcs.pdfs import TCrits, ExpPDF, GeometricPDF, expPDF_exact_printout
 
 class QMatrixPrints(QMatrix):
     """
@@ -218,8 +218,8 @@ class SCBurstPrints(SCBurst):
         e1, w1 = self.length_pdf_components()
         e2, w2 = self.length_pdf_no_single_openings_components()
         sections = [
-            expPDF_printout(e1, w1, '\nPDF of total burst length, unconditional'),
-            expPDF_printout(e2, w2, '\nPDF of burst length for bursts with 2 or more openings')
+            ExpPDF(1 / e1, w1 / e1).printout('\nPDF of total burst length, unconditional'),
+            ExpPDF(1 / e2, w2 / e2).printout('\nPDF of burst length for bursts with 2 or more openings')
         ]
         return ''.join(sections)
 
@@ -232,9 +232,9 @@ class SCBurstPrints(SCBurst):
         e2, w2 = self.first_opening_length_pdf_components()
         rho, w = self.openings_distr_components()
         sections = [
-            expPDF_printout(e1, w1, '\nPDF of total open time per burst'),
-            expPDF_printout(e2, w2, '\nPDF of first opening in a burst with 2 or more openings'),
-            geometricPDF_printout(rho, w, '\nGeometric PDF of number (r) of openings per burst (unconditional)')
+            ExpPDF(1 / e1, w1 / e1).printout('\nPDF of total open time per burst'),
+            ExpPDF(1 / e2, w2 / e2).printout('\nPDF of first opening in a burst with 2 or more openings'),
+            GeometricPDF(rho, w).printout('\nGeometric PDF of number (r) of openings per burst (unconditional)')
         ]
         return ''.join(sections)
 
@@ -247,92 +247,20 @@ class SCBurstPrints(SCBurst):
         e2, w2 = self.shut_times_between_burst_pdf_components()
         e3, w3 = self.shut_time_total_pdf_components_2more_openings()
         sections = [
-            expPDF_printout(e1, w1, '\nPDF of gaps inside burst'),
-            expPDF_printout(e2, w2, '\nPDF of gaps between bursts'),
-            expPDF_printout(e3, w3, '\nPDF of total shut time per burst for bursts with at least 2 openings')
+            ExpPDF(1 / e1, w1 / e1).printout('\nPDF of gaps inside burst'),
+            ExpPDF(1 / e2, w2 / e2).printout('\nPDF of gaps between bursts'),
+            ExpPDF(1 / e3, w3 / e3).printout('\nPDF of total shut time per burst for bursts with at least 2 openings')
         ]
         return ''.join(sections)
 
-def expPDF_printout(eigs, amps, title):
-    """
-    Print exponential PDF data.
-    """
-    table = [
-        [i+1, amps[i], eigs[i], 1000 / eigs[i], 100 * amps[i] / eigs[i]]
-        for i in range(len(eigs))
-    ]
-    info_str = f'\n{title}\n' + tabulate(
-        table,
-        headers=['Term', 'Amplitude', 'Rate (1/sec)', 'tau (ms)', 'Area (%)'],
-        tablefmt='orgtbl'
-    )
-    
-    mean = np.sum((amps/eigs) * (1/eigs))
-    var = np.sum((amps/eigs) * (1/eigs) * (1/eigs))
-    sd = np.sqrt(2 * var - mean * mean)
-    info_str += f'\nMean (ms) = {mean * 1000:.5g}\t\tSD = {sd * 1000:.5g}\t\tSD/mean = {sd / mean:.5g}\n'
-    return info_str
-
-def geometricPDF_printout(rho, w, title):
-    """
-    Print geometric PDF data.
-    """
-    norm = 1 / (np.ones(rho.shape) - rho)
-    table = [
-        [i+1, w[i], rho[i], 100 * w[i] * norm[i], norm[i]]
-        for i in range(len(rho))
-    ]
-    info_str = f'\n{title}\n' + tabulate(
-        table,
-        headers=['Term', 'w', 'rho', 'area(%)', 'Norm mean'],
-        tablefmt='orgtbl'
-    )
-    
-    mean = np.sum(w / np.power(np.ones(len(rho)) - rho, 2))
-    var = np.sum(w * (np.ones(len(rho)) + rho) / np.power(np.ones(len(rho)) - rho, 3))
-    sd = np.sqrt(var - mean * mean)
-    info_str += f'\nMean number of openings per burst = {mean:.5g}\n\tSD = {sd:.5g}\tSD/mean = {sd / mean:.5g}\n'
-    return info_str
 
 
-def expPDF_asymptotic_printout(eigs, areas, tres, title):
-    """
-    """
-
-    info_str = '\n'+title+ '\n'
-    areast0 = areas * np.exp(tres * eigs)
-    areast0 /= np.sum(areast0)
-    table = []
-    for i in range(len(eigs)):
-        table.append([i+1, eigs[i], 1000 / eigs[i], 100 * areas[i], 100 * areast0[i]])
-    info_str += tabulate(table, 
-                              headers=['Term', 'Rate (1/sec)', 'tau (ms)', 'Area (%)', 'Area renormalised for t=0 to inf'], 
-                              tablefmt='orgtbl')       
-    return info_str
-
-def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
-    """
-    """
-
-    info_str = '\n'+title+ '\n'
-    table = []
-    for i in range(len(eigs)):
-        table.append([eigs[i], gamma00[i], gamma10[i], gamma11[i]])
-    info_str += tabulate(table, 
-                              headers=['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)'], 
-                              tablefmt='orgtbl')       
-    return info_str
 
 class TCritPrints(QMatrix):
     def __init__(self, mec):
         QMatrix.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
         e, w = self.ideal_shut_time_pdf_components()
-        #print('eigs=', e)
-        #print('amps=', w)
-
         self.tcrits = TCrits(1 / e, w / e)
-        #print('taus (ms) =', tcrits.taus * 1000)
-        #print('areas (%) =', tcrits.areas * 100)
 
     @property
     def print_all(self):
@@ -342,7 +270,7 @@ class TCritPrints(QMatrix):
 
 class HJCDwellsPrints(HJCDwells):
     '''
-    Print Q-Matrix stuff.
+    Print Q-Matrix HJC stuff.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
@@ -350,14 +278,16 @@ class HJCDwellsPrints(HJCDwells):
 
     @property
     def print_all(self):
-        """
-        Output burst calculations.
-        """
+        """ Output HJC distribution calculations. """
 
-        all_str = ('\n*******************************************\n' +
-        'CALCULATED SINGLE CHANNEL IDEAL DWELL MEANS, PDFS, ETC....\n')
-
-        return all_str
+        return ('\n*******************************************\n' +
+            'CALCULATED SINGLE CHANNEL HJC DWELL MEANS, PDFS, ETC....\n' +
+            self.print_initial_HJC_vectors +
+            self.print_HJC_asymptotic_open_time_pdf +
+            self.print_HJC_exact_open_time_pdf +
+            self.print_HJC_asymptotic_shut_time_pdf +
+            self.print_HJC_exact_shut_time_pdf
+            )
 
     @property
     def print_initial_HJC_vectors(self):
@@ -374,8 +304,8 @@ class HJCDwellsPrints(HJCDwells):
     def print_HJC_asymptotic_open_time_pdf(self):
 
         e, a = self.HJC_asymptotic_open_time_pdf_components()
-        info_str = expPDF_asymptotic_printout(e, a, self.tres, '\nASYMPTOTIC OPEN TIME DISTRIBUTION')
-        info_str += ('\nApparent mean open time (ms) = {0:.5g}\n'.format(self.apparent_mean_open_time * 1000))
+        info_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC OPEN TIME DISTRIBUTION')
+        info_str += '\nApparent mean open time (ms) = {0:.5g}\n'.format(self.apparent_mean_open_time * 1000)
         return info_str
 
     @property
@@ -396,20 +326,21 @@ class HJCDwellsPrints(HJCDwells):
     def print_HJC_asymptotic_shut_time_pdf(self):
 
         e, a = self.HJC_asymptotic_shut_time_pdf_components()
-        info_str = expPDF_asymptotic_printout(e, a, self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
+        info_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
         info_str += ('\nApparent mean shut time (ms) = {0:.5g}\n'.format(self.apparent_mean_shut_time * 1000))
         return info_str
     
     #TODO: move this function into 'adjacent dwells' class
-    def print_adjacent_dwells(self, t1, t2):
-        
-        adjacent_str = ('\nPDF of open times that precede shut times between {0:.3f} and {1:.3f} ms'.
-                         format(t1 * 1000, t2 * 1000))
-        e, a = self.adjacent_open_to_shut_range_pdf_components(t1, t2)
-        adjacent_str += expPDF_printout(e, a, 'OPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE')
-        mean = self.adjacent_open_to_shut_range_mean(t1, t2) #     mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
-        adjacent_str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
-        return adjacent_str
+#    def print_adjacent_dwells(self, t1, t2):
+#        
+#        adjacent_str = ('\nPDF of open times that precede shut times between {0:.3f} and {1:.3f} ms'.
+#                         format(t1 * 1000, t2 * 1000))
+#        e, a = self.adjacent_open_to_shut_range_pdf_components(t1, t2)
+#        adjacent_str += ExpPDF(1 / e, a / e).printout('\nOPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE')
+#        #adjacent_str += expPDF_printout(e, a, 'OPEN TIMES ADJACENT TO SPECIFIED SHUT TIME RANGE')
+#        mean = self.adjacent_open_to_shut_range_mean(t1, t2) #     mec.QAA, mec.QAF, mec.QFF, mec.QFA, phiA)
+#        adjacent_str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
+#        return adjacent_str
 
         
 

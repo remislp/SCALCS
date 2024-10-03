@@ -284,14 +284,43 @@ class ExpPDF:
             f = (self.areas / self.taus) * np.exp(-t / self.taus)
         return f
 
-    def printout(self, title): #eigs, amps, title):
+    def printout(self, title, print_mean=True): #eigs, amps, title):
         """ Print exponential PDF data.  """
         header = ['Term', 'Amplitude', 'Rate (1/sec)', 'tau (ms)', 'Area (%)']
         table = [ [i+1, self.areas[i] / self.taus[i], 1 / self.taus[i], 1000 * self.taus[i], 100 * self.areas[i]]
             for i in range(self.num_components) ]
         table_str = f'\n{title}\n' + tabulate( table, headers=header, tablefmt='orgtbl' )
+        if not print_mean: return table_str
         mean_str = f'\nMean (ms) = {self.mean * 1000:.5g}\t\tSD = {self.SD * 1000:.5g}\t\tSD/mean = {self.SD / self.mean:.5g}\n'
         return table_str + mean_str
+
+    def printout_asymptotic(self, tres, title):
+        """
+        """
+
+        info_str = '\n'+title+ '\n'
+        areast0 = self.areas * np.exp(tres / self.taus)
+        areast0 /= np.sum(areast0)
+        table = []
+        for i in range(self.num_components):
+            table.append([i+1, 1 / self.taus[i], 1000 * self.taus[i], 100 * self.areas[i], 100 * areast0[i]])
+        info_str += tabulate(table, 
+                                headers=['Term', 'Rate (1/sec)', 'tau (ms)', 'Area (%)', 'Area renormalised for t=0 to inf'], 
+                                tablefmt='orgtbl')       
+        return info_str
+
+def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
+    """
+    """
+
+    info_str = '\n'+title+ '\n'
+    table = []
+    for i in range(len(eigs)):
+        table.append([eigs[i], gamma00[i], gamma10[i], gamma11[i]])
+    info_str += tabulate(table, 
+                              headers=['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)'], 
+                              tablefmt='orgtbl')       
+    return info_str
 
 
 class GeometricPDF:
@@ -305,14 +334,15 @@ class GeometricPDF:
         self.variance = np.sum(self.w * (self.ONE + self.rho) / np.power(self.ONE - self.rho, 3))
         self.SD = np.sqrt(self.variance - self.mean * self.mean)
 
-    def printout(self, title): #rho, w, title):
+    def printout(self, title, print_mean=True): #rho, w, title):
         """ Print geometric PDF data. """
         
         header = ['Term', 'w', 'rho', 'area(%)', 'Norm mean']
         table = [
             [i+1, self.w[i], self.rho[i], 100 * self.w[i] * self.norm[i], self.norm[i]]
-            for i in range(self.num_components) ]
+            for i in range(self.k) ]
         table_str = f'\n{title}\n' + tabulate(table, headers=header, tablefmt='orgtbl')
+        if not print_mean: return table_str
         mean_str = f'\nMean number of openings per burst = {self.mean:.5g}\n\tSD = {self.SD:.5g}\tSD/mean = {self.SD / self.mean:.5g}\n'
         return table_str + mean_str
 
