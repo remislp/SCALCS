@@ -22,13 +22,13 @@ class SCBurst(QMatrix):
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
-        self.GAB = qml.GXY(self.QAA, self.QAB)
-        self.GBA = qml.GXY(self.QBB, self.QBA)
+        #self.GAB = self._GXY(self.QAA, self.QAB)
+        #self.GBA = self._GXY(self.QBB, self.QBA)
         #self.GABAG = np.dot(self.GAB, self.GBA)
         self.GABAG = self.GAB @ self.GBA
         self.probability_of_ending = self.IA - self.GABAG
-        self.GAF = qml.GXY(self.QAA, self.QAF)
-        self.GFA = qml.GXY(self.QFF, self.QFA)
+        #self.GAF = self._GXY(self.QAA, self.QAF)
+        #self.GFA = self._GXY(self.QFF, self.QFA)
         self.invQAA = nplin.inv(self.QAA)
         self.invQBB = nplin.inv(self.QBB)
         self.invQFF = nplin.inv(self.QFF)

@@ -50,35 +50,36 @@ from scalcs import qmatlib as qml
 from scalcs import pdfs
 #import optimize
 
-from scalcs.qmatlib import QMatrix
+from scalcs.qmatlib import QMatrix, HJCMatrix
 
-class HJCDwells(QMatrix):
+#class HJCDwells(QMatrix):
+class HJCDwells(HJCMatrix):
     '''
     Class to calculate dwell-time distributions (open and shut times) using
     HJC models from the Q matrix.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
-        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
-        self._tres = tres
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
+#        self._tres = tres
 
-    @property
-    def tres(self):
-        return self._tres
+#    @property
+#    def tres(self):
+#        return self._tres
 
-    @tres.setter
-    def tres(self, value):
-        self._tres = value
-        self._update_expQ()
-        self._update_eG()
+#    @tres.setter
+#    def tres(self, value):
+#        self._tres = value
+#        self._update_expQ()
+#        self._update_eG()
 
-    def _update_expQ(self):
-        self.expQFF = qml.expQ(self.QFF, self.tres)
-        self.expQAA = qml.expQ(self.QAA, self.tres)
+#    def _update_expQ(self):
+#        self.expQFF = qml.expQ(self.QFF, self.tres)
+#        self.expQAA = qml.expQ(self.QAA, self.tres)
 
-    def _update_eG(self):
-        self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
-        self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
+#    def _update_eG(self):
+#        self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
+#        self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
 
     @property
     def apparentPopen(self):
@@ -97,23 +98,23 @@ class HJCDwells(QMatrix):
         QexpQA = np.dot(self.QFA, self.expQAA)
         return self.tres + np.dot(self.HJCphiF, np.dot(np.dot(self.dFRSdS, QexpQA), self.uA))[0]
 
-    @property
-    def HJCphiA(self):
-        """Calculate initial HJC vector for open states 
-        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)"""
-        return self._compute_HJCphi(self.eGAF, self.eGFA, self.kA, self.IA, self.uA)
+#    @property
+#    def HJCphiA(self):
+#        """Calculate initial HJC vector for open states 
+#        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)"""
+#        return self._compute_HJCphi(self.eGAF, self.eGFA, self.kA, self.IA, self.uA)
 
-    @property
-    def HJCphiF(self):
-        """Calculate initial HJC vector for shut states (Eq. 10, HJC92)."""
-        return self._compute_HJCphi(self.eGFA, self.eGAF, self.kF, self.IF, self.uF)
+#    @property
+#    def HJCphiF(self):
+#        """Calculate initial HJC vector for shut states (Eq. 10, HJC92)."""
+#        return self._compute_HJCphi(self.eGFA, self.eGAF, self.kF, self.IF, self.uF)
 
-    def _compute_HJCphi(self, eG_self, eG_other, k, I_self, u_self):
-        """Helper to compute HJCphi vector for open/shut states."""
-        if k == 1:
-            return np.array([1])
-        S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
-        return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
+#    def _compute_HJCphi(self, eG_self, eG_other, k, I_self, u_self):
+#        """Helper to compute HJCphi vector for open/shut states."""
+#        if k == 1:
+#            return np.array([1])
+#        S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
+#        return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
 
     def HJC_asymptotic_open_time_pdf_components(self):
         """Get the roots and areas for open times."""
@@ -279,11 +280,6 @@ class HJCDwells(QMatrix):
         
         sys.stderr.write("bisectHJC: Warning: Unable to split intervals for bisection after 1000 attempts.\n")
         return sa, sc, sb, nga, ngc, ngb
-
-
-
-
-
 
 
     def asymptotic_areas(self, roots, open=True):
@@ -599,9 +595,7 @@ class HJCDwells(QMatrix):
 
 
 class AdjacentDwells(HJCDwells):
-    '''
-    Print dwell time ideal distributions.
-    '''
+    ''' Print adjacent dwell time distributions. '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         # Initialize the QMatrix instance.
@@ -752,9 +746,6 @@ class SCCorrelations(QMatrix):
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
-        # Initialize G matrices and their ranks
-        self.GAF = qml.GXY(self.QAA, self.QAF)
-        self.GFA = qml.GXY(self.QFF, self.QFA)
         self.rank_GAF, self.rank_GFA = nplin.matrix_rank(self.GAF), nplin.matrix_rank(self.GFA)
 
         # Compute XFF and XAA matrices and their eigen decomposition

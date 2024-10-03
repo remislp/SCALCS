@@ -9,8 +9,6 @@ from scipy import optimize
 from scalcs import qmatlib as qml
 from scalcs import scalcslib as scl
 
-from scalcs.scalcslib import SCDwells
-
 class PopenCurve():
     """Container for entire Popen curve"""
 

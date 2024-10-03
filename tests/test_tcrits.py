@@ -3,7 +3,7 @@ import numpy as np
 from scipy import optimize as so
 
 from scalcs.pdfs import TCrits
-from scalcs.scalcslib import SCDwells
+from scalcs.qmatlib import QMatrix
 from samples import samples
 
 class TestTCrits(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestTCrits(unittest.TestCase):
         # Setting up test data
         mec = samples.CH82()
         mec.set_eff('c', 0.1e-6) # 0.1 uM
-        q_dwells = SCDwells(mec.Q, mec.kA, mec.kB, mec.kC, mec.kD)
+        q_dwells = QMatrix(mec.Q, mec.kA, mec.kB, mec.kC, mec.kD)
         e, w = q_dwells.ideal_shut_time_pdf_components()
         self.tcrits_obj = TCrits(1 / e, w / e)
         

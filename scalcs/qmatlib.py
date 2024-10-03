@@ -152,52 +152,8 @@ def pinf_reduceQ(Q):
     temp = -Q[-1:, :-1] @ nplin.inv(reduced_Q_matrix)
     return np.append(temp, 1 - np.sum(temp))
 
-def GXY(QXX, QXY):
-    r"""
-    Calculate G matrix (Eq. 1.25, CH82).
-    Calculate GAB, GBA, GFA, GAF, etc by replacing X and Y with required subsets (e.g. A, B, F).
 
-    .. math::
 
-       \bs{G}_\cl{AB} &= -\bs{Q}_\cl{AA}^{-1} \bs{Q}_\cl{AB}
-
-    Parameters
-    ----------
-    QXX, QXY : array_like, shape (kX, kX), (kX, kY)
-        Q-matrix subsets.
-
-    Returns
-    -------
-    GXY : ndarray, shape (kX, kY)
-    """
-
-    return nplin.inv(-QXX) @ QXY
-
-#TODO: not sure yet where to place this function
-def eGs(GAF, GFA, kA, kF, expQFF):
-    """
-    Calculate eGAF, probabilities from transitions from apparently open to
-    shut states regardles of when the transition occurs. Thease are Laplace
-    transform of eGAF(t) when s=0. Used to calculat initial HJC vectors (HJC92).
-    eGAF*(s=0) = (I - GAF * (I - expQFF) * GFA)^-1 * GAF * expQFF
-    To caculate eGFA exhange A by F and F by A in function call.
-
-    Parameters
-    ----------
-    GAF : array_like, shape (kA, kF)
-    GFA : array_like, shape (kF, kA)
-    kA : int
-        A number of open states in kinetic scheme.
-    kF : int
-        A number of shut states in kinetic scheme.
-    
-    Returns
-    -------
-    eGAF : array_like, shape (kA, kF)
-    """
-
-    temp = np.eye(kA) - GAF @ (np.eye(kF) - expQFF) @ GFA
-    return nplin.inv(temp) @ GAF @ expQFF
 
 class QMatrix:
     '''
@@ -227,6 +183,8 @@ class QMatrix:
 
         self.GAF = self._GXY(self.QAA, self.QAF) 
         self.GFA = self._GXY(self.QFF, self.QFA)
+        self.GAB = self._GXY(self.QAA, self.QAB)
+        self.GBA = self._GXY(self.QBB, self.QBA)
 
     def _calculate_pinf(self):
         """ Placeholder for calculating steady-state probabilities (pinf). """
@@ -254,7 +212,6 @@ class QMatrix:
         \bs{G}_\cl{AB} &= -\bs{Q}_\cl{AA}^{-1} \bs{Q}_\cl{AB}
 
         """
-
         return nplin.inv(-QXX) @ QXY
 
     def state_lifetimes(self):
@@ -416,6 +373,74 @@ class QMatrix:
         phi, QSub = phiSub(Q, k1, k2)
         expQSub = expQ(QSub, t)
         return phi @ expQSub @ -QSub @ u
+
+
+class HJCMatrix(QMatrix):
+    """ Class to store HJC basic calculations. """
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        self._tres = tres
+
+    @property
+    def tres(self):
+        return self._tres
+
+    @tres.setter
+    def tres(self, value):
+        self._tres = value
+        self._update_expQ()
+        self._update_eG()
+
+    def _update_expQ(self):
+        self.expQFF = expQ(self.QFF, self.tres)
+        self.expQAA = expQ(self.QAA, self.tres)
+
+    def _update_eG(self):
+        self.eGAF = self.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
+        self.eGFA = self.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
+
+    def eGs(self, GAF, GFA, kA, kF, expQFF):
+        """
+        Calculate eGAF, probabilities from transitions from apparently open to
+        shut states regardles of when the transition occurs. Thease are Laplace
+        transform of eGAF(t) when s=0. Used to calculat initial HJC vectors (HJC92).
+        eGAF*(s=0) = (I - GAF * (I - expQFF) * GFA)^-1 * GAF * expQFF
+        To caculate eGFA exhange A by F and F by A in function call.
+
+        Parameters
+        ----------
+        GAF : array_like, shape (kA, kF)
+        GFA : array_like, shape (kF, kA)
+        kA : int
+            A number of open states in kinetic scheme.
+        kF : int
+            A number of shut states in kinetic scheme.
+        
+        Returns
+        -------
+        eGAF : array_like, shape (kA, kF)
+        """
+
+        temp = np.eye(kA) - GAF @ (np.eye(kF) - expQFF) @ GFA
+        return nplin.inv(temp) @ GAF @ expQFF
+
+    @property
+    def HJCphiA(self):
+        """Calculate initial HJC vector for open states 
+        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)"""
+        return self._compute_HJCphi(self.eGAF, self.eGFA, self.kA, self.IA, self.uA)
+
+    @property
+    def HJCphiF(self):
+        """Calculate initial HJC vector for shut states (Eq. 10, HJC92)."""
+        return self._compute_HJCphi(self.eGFA, self.eGAF, self.kF, self.IF, self.uF)
+
+    def _compute_HJCphi(self, eG_self, eG_other, k, I_self, u_self):
+        """Helper to compute HJCphi vector for open/shut states."""
+        if k == 1:
+            return np.array([1])
+        S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
+        return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
 
 
 ### Functions to review
@@ -710,6 +735,54 @@ def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
     return Z00, Z10, Z11
 
 ### Deprecated functions 
+
+@deprecated("Use 'QMatrix'")
+def GXY(QXX, QXY):
+    r"""
+    Calculate G matrix (Eq. 1.25, CH82).
+    Calculate GAB, GBA, GFA, GAF, etc by replacing X and Y with required subsets (e.g. A, B, F).
+
+    .. math::
+
+       \bs{G}_\cl{AB} &= -\bs{Q}_\cl{AA}^{-1} \bs{Q}_\cl{AB}
+
+    Parameters
+    ----------
+    QXX, QXY : array_like, shape (kX, kX), (kX, kY)
+        Q-matrix subsets.
+
+    Returns
+    -------
+    GXY : ndarray, shape (kX, kY)
+    """
+
+    return nplin.inv(-QXX) @ QXY
+
+@deprecated("Use 'HJCMatrix'")
+def eGs(GAF, GFA, kA, kF, expQFF):
+    """
+    Calculate eGAF, probabilities from transitions from apparently open to
+    shut states regardles of when the transition occurs. Thease are Laplace
+    transform of eGAF(t) when s=0. Used to calculat initial HJC vectors (HJC92).
+    eGAF*(s=0) = (I - GAF * (I - expQFF) * GFA)^-1 * GAF * expQFF
+    To caculate eGFA exhange A by F and F by A in function call.
+
+    Parameters
+    ----------
+    GAF : array_like, shape (kA, kF)
+    GFA : array_like, shape (kF, kA)
+    kA : int
+        A number of open states in kinetic scheme.
+    kF : int
+        A number of shut states in kinetic scheme.
+    
+    Returns
+    -------
+    eGAF : array_like, shape (kA, kF)
+    """
+
+    temp = np.eye(kA) - GAF @ (np.eye(kF) - expQFF) @ GFA
+    return nplin.inv(temp) @ GAF @ expQFF
 
 @deprecated("Use 'eigenvalues_and_spectral_matrices'")
 def eigs(Q):
