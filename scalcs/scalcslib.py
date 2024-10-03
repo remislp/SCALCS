@@ -54,127 +54,95 @@ from scalcs.qmatlib import QMatrix
 
 class HJCDwells(QMatrix):
     '''
-    Print HJC distributions stuff.
+    Class to calculate dwell-time distributions (open and shut times) using
+    HJC models from the Q matrix.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
-        # Initialize the QMatrix instance.
-        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        self._tres = tres
 
-        #self.tres = tres
-        
     @property
     def tres(self):
         return self._tres
+
     @tres.setter
     def tres(self, value):
         self._tres = value
+        self._update_expQ()
+        self._update_eG()
+
+    def _update_expQ(self):
         self.expQFF = qml.expQ(self.QFF, self.tres)
         self.expQAA = qml.expQ(self.QAA, self.tres)
+
+    def _update_eG(self):
         self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
         self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
 
     @property
     def apparentPopen(self):
-         return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
+        """Apparent open probability (Eq. from the mean open and shut times)."""
+        return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
 
     @property
-    def HJCphiA(self): 
-        """
-        Calculate initial HJC vector for openings by solving
-        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)
-        For shuttings exhange A by F and F by A in function call.
-
-        Returns
-        -------
-        phi : array_like, shape (kA)
-        """
-
-        if self.kA == 1:
-            return np.array([1])
-        else:
-            S = np.concatenate(((self.IA - np.dot(self.eGAF, self.eGFA)), self.uA), 1)
-            return np.dot(self.uA.transpose(), nplin.inv(np.dot(S, S.transpose())))[0]
-
-    @property
-    def HJCphiF(self): #eGAF, eGFA, kA):
-        """
-        Calculate initial HJC vector for openings by solving
-        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)
-        For shuttings exhange A by F and F by A in function call.
-
-        Returns
-        -------
-        phi : array_like,  shape (kA)
-        """
-
-        if self.kF == 1:
-            return np.array([1])
-        else:
-            S = np.concatenate(((self.IF - np.dot(self.eGFA, self.eGAF)), self.uF), 1)
-            return np.dot(self.uF.transpose(), nplin.inv(np.dot(S, S.transpose())))[0]
-
-    @property
-    def apparent_mean_open_time(self): #tres, QAA, QFF, QAF, kA, kF, GAF, GFA):
-        """
-        Calculate apparent mean open time from HJC probability density function.
-
-        Returns
-        -------
-        mean : float
-            Apparent mean open time.
-        """
-        
+    def apparent_mean_open_time(self):
+        """Calculate apparent mean open time using HJC probability density function."""
         QexpQF = np.dot(self.QAF, self.expQFF)
         return self.tres + np.dot(self.HJCphiA, np.dot(np.dot(self.dARSdS, QexpQF), self.uF))[0]
-    
+
     @property
     def apparent_mean_shut_time(self):
-        """
-        Calculate apparent mean shut time from HJC probability density function.
-
-        Returns
-        -------
-        mean : float
-            Apparent mean shut time.
-        """
-        
+        """Calculate apparent mean shut time using HJC probability density function."""
         QexpQA = np.dot(self.QFA, self.expQAA)
         return self.tres + np.dot(self.HJCphiF, np.dot(np.dot(self.dFRSdS, QexpQA), self.uA))[0]
 
-    def HJC_asymptotic_open_time_pdf_components(self):
+    @property
+    def HJCphiA(self):
+        """Calculate initial HJC vector for open states 
+        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)"""
+        return self._compute_HJCphi(self.eGAF, self.eGFA, self.kA, self.IA, self.uA)
 
-        roots = -self.asymptotic_roots(open=True)
-        areas = self.asymptotic_areas(roots, open=True)
-        return roots, areas
+    @property
+    def HJCphiF(self):
+        """Calculate initial HJC vector for shut states (Eq. 10, HJC92)."""
+        return self._compute_HJCphi(self.eGFA, self.eGAF, self.kF, self.IF, self.uF)
+
+    def _compute_HJCphi(self, eG_self, eG_other, k, I_self, u_self):
+        """Helper to compute HJCphi vector for open/shut states."""
+        if k == 1:
+            return np.array([1])
+        S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
+        return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
+
+    def HJC_asymptotic_open_time_pdf_components(self):
+        """Get the roots and areas for open times."""
+        return self._asymptotic_pdf_components(open=True)
 
     def HJC_asymptotic_shut_time_pdf_components(self):
+        """Get the roots and areas for shut times."""
+        return self._asymptotic_pdf_components(open=False)
 
-        roots = -self.asymptotic_roots(open=False)
-        areas = self.asymptotic_areas(roots, open=False)
+    def _asymptotic_pdf_components(self, open):
+        """Helper to calculate roots and areas for open or shut times."""
+        roots = -self.asymptotic_roots(open=open)
+        areas = self.asymptotic_areas(roots, open=open)
         return roots, areas
-    
-    def asymptotic_roots(self, open=True):
-        """
-        Find roots for the asymptotic probability density function (Eqs. 52-58, HJC92).
 
-        Returns
-        -------
-        roots : array_like, shape (kA or kF)
-            Roots of the asymptotic probability density function.
-        """
+    def asymptotic_roots(self, open=True):
+        """Find the roots for the asymptotic pdf (Eqs. 52-58, HJC92)."""
+        return self._calculate_roots(open=open)
+
+    def _calculate_roots(self, open):
         sas, sbs = -1e6, -1e-7
-        sro = self.__bisect_intervals(sas, sbs, open=open)
-        
+        intervals = self._bisect_intervals(sas, sbs, open=open)
         root_count = self.kA if open else self.kF
-        brentq_args = self.__get_brentq_args(open)
-        
-        roots = np.array([so.brentq(qml.detW, sro[i, 0], sro[i, 1], args=brentq_args)
-                        for i in range(root_count)])
-        
+        brentq_args = self._get_brentq_args(open)
+        roots = np.array([so.brentq(qml.detW, intervals[i, 0], intervals[i, 1], args=brentq_args)
+                          for i in range(root_count)])
         return roots
 
-    def __get_brentq_args(self, open):
+    def _get_brentq_args(self, open):
         """
         Get the correct arguments for the Brentq method based on the 'open' flag.
         
@@ -184,34 +152,19 @@ class HJCDwells(QMatrix):
         """
         return (self.tres, self.QAA, self.QFF, self.QAF, self.QFA, self.kA, self.kF) if open else \
             (self.tres, self.QFF, self.QAA, self.QFA, self.QAF, self.kF, self.kA)
+    
 
-    def __bisect_gFB(self, s, open=True):
-        """
-        Find the number of eigenvalues of H(s) that are equal to or less than s.
 
-        Parameters
-        ----------
-        s : float
-            Laplace transform argument.
-
-        Returns
-        -------
-        ng : int
-            Number of eigenvalues less than or equal to s.
-        """
-        eigvals = nplin.eigvals(self.H(s, open=open))
-        return (eigvals <= s).sum()
-
-    def __bisect_intervals(self, sa, sb, open=True):
+    def _bisect_intervals(self, sa, sb, open=True):
         """
         Use Frank Ball's method to find initial guesses for each HJC root.
 
         Parameters
         ----------
         sa, sb : float
-            Laplace transform arguments.
+            Laplace transform arguments to define the initial search interval.
         open : bool, optional
-            Flag indicating the model type, by default True.
+            Flag indicating whether to compute for open (True) or shut states (False).
 
         Returns
         -------
@@ -226,75 +179,111 @@ class HJCDwells(QMatrix):
         
         while todo:
             sa1, sc, sb2, nga1, ngc, ngb2 = self.__bisect_split(todo.pop(), open)
+            
+            # Left interval: [sa1, sc]
             if (ngc - nga1) == 1:
                 intervals.append([sa1, sc])
             else:
                 todo.append([sa1, sc, nga1, ngc])
+            
+            # Right interval: [sc, sb2]
             if (ngb2 - ngc) == 1:
                 intervals.append([sc, sb2])
             else:
                 todo.append([sc, sb2, ngc, ngb2])
         
+        # Check if all roots were located
         if len(intervals) < root_count:
             sys.stderr.write(f"bisectHJC: Warning: Only {len(intervals)} roots out of {root_count} were located.\n")
         
         return np.array(intervals)
 
+    def __bisect_gFB(self, s, open=True):
+        """
+        Determine the number of eigenvalues of H(s) that are less than or equal to s.
+
+        Parameters
+        ----------
+        s : float
+            Laplace transform argument to evaluate.
+        open : bool, optional
+            Flag indicating whether to compute for open (True) or shut states (False).
+
+        Returns
+        -------
+        int
+            Number of eigenvalues less than or equal to the given s.
+        """
+        eigvals = nplin.eigvals(self.H(s, open=open))
+        return (eigvals <= s).sum()
+
     def __adjust_intervals(self, sa, sb, root_count, open):
         """
-        Adjust initial intervals for bisection based on eigenvalue counts.
+        Adjust the initial search intervals for bisection based on the eigenvalue count.
 
         Parameters
         ----------
         sa, sb : float
-            Initial interval limits.
+            Initial interval limits to search for roots.
         root_count : int
-            Number of roots to be located.
-        open : bool
-            Flag indicating the model type.
+            Number of roots expected to be found in the interval.
+        open : bool, optional
+            Flag indicating whether to compute for open (True) or shut states (False).
 
         Returns
         -------
-        tuple : Adjusted interval limits.
+        tuple : Adjusted interval limits (sa, sb).
         """
         nga = self.__bisect_gFB(sa, open=open)
-        if nga > 0: sa *= 4
+        if nga > 0:
+            sa *= 4
+        
         ngb = self.__bisect_gFB(sb, open=open)
-        if ngb < root_count: sb /= 4
+        if ngb < root_count:
+            sb /= 4
         
         return sa, sb
 
-    def __bisect_split(self, svv, open):
+    def __bisect_split(self, interval_data, open):
         """
-        Split the interval [sa, sb] into two subintervals.
+        Split the interval [sa, sb] into two subintervals based on eigenvalue counts.
 
         Parameters
         ----------
-        svv : list
-            Contains interval limits and eigenvalue counts [sa, sb, nga, ngb].
+        interval_data : list
+            Contains the current interval limits and eigenvalue counts [sa, sb, nga, ngb].
         open : bool
-            Flag indicating the model type.
+            Flag indicating whether to compute for open (True) or shut states (False).
 
         Returns
         -------
-        tuple : Split interval limits and eigenvalue counts (sa1, sc, sb2, nga1, ngc, ngb2).
+        tuple : Split interval limits and corresponding eigenvalue counts 
+                (sa1, sc, sb2, nga1, ngc, ngb2).
         """
-        sa, sb, nga, ngb = svv
-        ntry, ntrymax = 0, 1000
-        
-        while ntry < ntrymax:
+        sa, sb, nga, ngb = interval_data
+        max_attempts = 1000
+        attempts = 0
+
+        while attempts < max_attempts:
             sc = (sa + sb) / 2.0
             ngc = self.__bisect_gFB(sc, open=open)
+            
             if ngc == nga:
                 sa = sc
             elif ngc == ngb:
                 sb = sc
             else:
                 return sa, sc, sb, nga, ngc, ngb
-            ntry += 1
+            
+            attempts += 1
         
-        sys.stderr.write("bisectHJC: Warning: unable to split intervals for bisection.\n")
+        sys.stderr.write("bisectHJC: Warning: Unable to split intervals for bisection after 1000 attempts.\n")
         return sa, sc, sb, nga, ngc, ngb
+
+
+
+
+
 
 
     def asymptotic_areas(self, roots, open=True):
@@ -609,89 +598,14 @@ class HJCDwells(QMatrix):
 
 
 
-class SCDwells(QMatrix):
+class AdjacentDwells(HJCDwells):
     '''
     Print dwell time ideal distributions.
     '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         # Initialize the QMatrix instance.
-        QMatrix.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
-
-        self.GAF = qml.GXY(self.QAA, self.QAF) 
-        self.GFA = qml.GXY(self.QFF, self.QFA)
-        
-
-    def ideal_open_time_pdf_components(self):
-        """
-        Calculate time constants and areas for an ideal (no missed events)
-        exponential open time probability density function.
-
-        Returns
-        -------
-        eigs : ndarray, shape(k, 1)
-            Eigenvalues.
-        areas : ndarray, shape(k, 1)
-            Component relative areas.
-        """
-        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QAA)
-        w = np.zeros(self.kA)
-        #TODO: remove 'for'
-        for i in range(self.kA):
-            w[i] = np.dot(np.dot(np.dot(self.phiA, A[i]), (-self.QAA)), self.uA)[0]
-        return eigs, w
-
-    def ideal_shut_time_pdf_components(self):
-        """
-        Calculate time constants and areas for an ideal (no missed events)
-        exponential open time probability density function.
-
-        Returns
-        -------
-        eigs : ndarray, shape(k, 1)
-            Eigenvalues.
-        areas : ndarray, shape(k, 1)
-            Component relative areas.
-        """
-        eigs, A = qml.eigenvalues_and_spectral_matrices(-self.QFF)
-        w = np.zeros(self.kF)
-        #TODO: remove 'for'
-        for i in range(self.kF):
-            w[i] = np.dot(np.dot(np.dot(self.phiF, A[i]), (-self.QFF)), self.uF)[0]
-        return eigs, w
-
-    def ideal_dwell_time_pdf(self, t, open=True):
-        """
-        Probability density function of the open time.
-        f(t) = phiOp * exp(-QAA * t) * (-QAA) * uA
-
-        Parameters
-        ----------
-        t : float
-            Time (sec).
-
-        Returns
-        -------
-        f : float
-        """
-
-        phiX = self.phiA if open else self.phiF
-        QXX = self.QAA if open else self.QFF
-        u = self.uA if open else self.uF
-        expQXX = qml.expQ(self.QAA, t) if open else qml.expQ(self.QFF, t)
-        return phiX @ expQXX @ -QXX @ u
-
-
-    def ideal_subset_time_pdf(self, Q, k1, k2, t):
-        """        
-        """
-        
-        u = np.ones((k2 - k1 + 1, 1))
-        phi, QSub = qml.phiSub(Q, k1, k2)
-        expQSub = qml.expQ(QSub, t)
-        return phi @ expQSub @ -QSub @ u
-
-
+        super().__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
 
     def adjacent_open_to_shut_range_mean(self, u1, u2): #, QAA, QAF, QFF, QFA, phiA):
         """
