@@ -52,7 +52,15 @@ from scalcs import pdfs
 
 from scalcs.qmatlib import QMatrix, HJCMatrix
 
-#class HJCDwells(QMatrix):
+class AsymptoticPDF(HJCMatrix):
+    """Asymptotic PDF calculations"""
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
+
+
+
+
 class HJCDwells(HJCMatrix):
     '''
     Class to calculate dwell-time distributions (open and shut times) using
@@ -61,25 +69,6 @@ class HJCDwells(HJCMatrix):
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
-#        self._tres = tres
-
-#    @property
-#    def tres(self):
-#        return self._tres
-
-#    @tres.setter
-#    def tres(self, value):
-#        self._tres = value
-#        self._update_expQ()
-#        self._update_eG()
-
-#    def _update_expQ(self):
-#        self.expQFF = qml.expQ(self.QFF, self.tres)
-#        self.expQAA = qml.expQ(self.QAA, self.tres)
-
-#    def _update_eG(self):
-#        self.eGAF = qml.eGs(self.GAF, self.GFA, self.kA, self.kF, self.expQFF)
-#        self.eGFA = qml.eGs(self.GFA, self.GAF, self.kF, self.kA, self.expQAA)
 
     @property
     def apparentPopen(self):
@@ -98,24 +87,6 @@ class HJCDwells(HJCMatrix):
         QexpQA = np.dot(self.QFA, self.expQAA)
         return self.tres + np.dot(self.HJCphiF, np.dot(np.dot(self.dFRSdS, QexpQA), self.uA))[0]
 
-#    @property
-#    def HJCphiA(self):
-#        """Calculate initial HJC vector for open states 
-#        phi*(I-eGAF*eGFA)=0 (Eq. 10, HJC92)"""
-#        return self._compute_HJCphi(self.eGAF, self.eGFA, self.kA, self.IA, self.uA)
-
-#    @property
-#    def HJCphiF(self):
-#        """Calculate initial HJC vector for shut states (Eq. 10, HJC92)."""
-#        return self._compute_HJCphi(self.eGFA, self.eGAF, self.kF, self.IF, self.uF)
-
-#    def _compute_HJCphi(self, eG_self, eG_other, k, I_self, u_self):
-#        """Helper to compute HJCphi vector for open/shut states."""
-#        if k == 1:
-#            return np.array([1])
-#        S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
-#        return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
-
     def HJC_asymptotic_open_time_pdf_components(self):
         """Get the roots and areas for open times."""
         return self._asymptotic_pdf_components(open=True)
@@ -126,13 +97,14 @@ class HJCDwells(HJCMatrix):
 
     def _asymptotic_pdf_components(self, open):
         """Helper to calculate roots and areas for open or shut times."""
-        roots = -self.asymptotic_roots(open=open)
+
+        roots = self.asymptotic_roots(open=open)
         areas = self.asymptotic_areas(roots, open=open)
         return roots, areas
 
     def asymptotic_roots(self, open=True):
         """Find the roots for the asymptotic pdf (Eqs. 52-58, HJC92)."""
-        return self._calculate_roots(open=open)
+        return -self._calculate_roots(open=open)
 
     def _calculate_roots(self, open):
         sas, sbs = -1e6, -1e-7
@@ -154,8 +126,6 @@ class HJCDwells(HJCMatrix):
         return (self.tres, self.QAA, self.QFF, self.QAF, self.QFA, self.kA, self.kF) if open else \
             (self.tres, self.QFF, self.QAA, self.QFA, self.QAF, self.kF, self.kA)
     
-
-
     def _bisect_intervals(self, sa, sb, open=True):
         """
         Use Frank Ball's method to find initial guesses for each HJC root.
@@ -504,7 +474,21 @@ class HJCDwells(HJCMatrix):
         VF = self.IF - np.dot(np.dot(self.GFA, SAA), self.GAF)
         Q4 = invQFF + - np.dot(Q1 - Q2 + Q3, nplin.inv(VF))
         return np.dot(np.dot(nplin.inv(VF), Q4), invQFF)
-    
+
+class ExactPDFCalculator(HJCMatrix):
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        """
+        Initialize the ExactPDFCalculator.
+
+        Parameters
+        ----------
+        Q : ndarray
+            The Q matrix representing the transition rates.
+        kA, kB, kC, kD : int, optional
+            Dimensions of different state subspaces. Defaults are 1 for kA and kB, 0 for kC and kD.
+        """
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+   
     def exact_GAMAxx(self, open=True):
         """
         Calculate gama coeficients for the exact dwell time pdf (Eq. 3.22, HJC90).
@@ -525,9 +509,9 @@ class HJCDwells(HJCMatrix):
         u = self.uF if open else self.uA
         phi = self.HJCphiA if open else self.HJCphiF
         eigs, Z00, Z10, Z11 = self.Zxx(open=open)
-        gama00 = (np.dot(np.dot(phi, Z00), u)).T[0]
-        gama10 = (np.dot(np.dot(phi, Z10), u)).T[0]
-        gama11 = (np.dot(np.dot(phi, Z11), u)).T[0]
+        gama00 = (phi @ Z00 @ u).T[0]
+        gama10 = (phi @ Z10 @ u).T[0]
+        gama11 = (phi @ Z11 @ u).T[0]
         return eigs, gama00, gama10, gama11
 
     def Zxx(self, open=True):
@@ -564,14 +548,12 @@ class HJCDwells(HJCMatrix):
             A1  = A[ : , self.kA :   ,    : self.kA]
         D = A1 @ expQyy @ Qyx
 
-        C11 = np.empty((self.k, kx, kx))
-        #TODO: try to remove 'for' cycles
-        for i in range(self.k):
-            C11[i] = D[i] @ C00[i]
-        # Vectorized computation of C11 (Eq. 3.18, HJC90) Does not work
-#        C11 = np.einsum('ijk,ilk->ijl', D, C00)
+        #C11 = np.empty((self.k, kx, kx))
+        #for i in range(self.k):
+        #    C11[i] = D[i] @ C00[i]
+        # Vectorized computation of C11 (Eq. 3.18, HJC90)
+        C11 = np.einsum('ijk,ikl->ijl', D, C00)
 
-        # Efficient calculation of C10 using broadcasting to remove inner loop
         C10 = np.empty((self.k, kx, kx))
         for i in range(self.k):
             S = sum(
@@ -580,15 +562,15 @@ class HJCDwells(HJCMatrix):
             )
             C10[i] = S
 
-#        M = np.dot(Qxy, expQyy)
-#        Z00 = np.array([np.dot(C, M) for C in C00])
-#        Z10 = np.array([np.dot(C, M) for C in C10])
-#        Z11 = np.array([np.dot(C, M) for C in C11])
         # Matrix M and Zxx calculation
         M = np.dot(Qxy, expQyy)
         Z00 = np.einsum('ijk,kl->ijl', C00, M)
         Z10 = np.einsum('ijk,kl->ijl', C10, M)
         Z11 = np.einsum('ijk,kl->ijl', C11, M)
+# Old code; keep for refernce
+#        Z00 = np.array([np.dot(C, M) for C in C00])
+#        Z10 = np.array([np.dot(C, M) for C in C10])
+#        Z11 = np.array([np.dot(C, M) for C in C11])
 
         return eigs, Z00, Z10, Z11
 

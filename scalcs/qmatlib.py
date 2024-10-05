@@ -153,8 +153,6 @@ def pinf_reduceQ(Q):
     return np.append(temp, 1 - np.sum(temp))
 
 
-
-
 class QMatrix:
     '''
     Transition rate matrix Q.
@@ -450,9 +448,7 @@ def iGt(t, QAA, QAB):
     GAB(t) = PAA(t) * QAB      Eq. 1.20 in CH82
     PAA(t) = exp(QAA * t)      Eq. 1.16 in CH82
     """
-
-    GAB = np.dot(expQ(QAA, t), QAB)
-    return GAB
+    return expQ(QAA, t) @ QAB
 
 def phiSub(Q, k1, k2):
     """
@@ -533,9 +529,7 @@ def HAF(roots, tres, tcrit, QAF, expQFF, R):
 
     coeff = -np.exp(roots * (tcrit - tres)) / roots
     temp = np.sum(R * coeff.reshape(R.shape[0],1,1), axis=0)
-    HAF = np.dot(np.dot(temp, QAF), expQFF)
-
-    return HAF
+    return temp @ QAF @ expQFF
 
 def CHSvec(roots, tres, tcrit, QFA, kA, expQAA, phiF, R):
     """
@@ -566,8 +560,8 @@ def CHSvec(roots, tres, tcrit, QFA, kA, expQAA, phiF, R):
 
     H = HAF(roots, tres, tcrit, QFA, expQAA, R)
     u = np.ones((kA, 1))
-    start = np.dot(phiF, H) / np.dot(np.dot(phiF, H), u)
-    end = np.dot(H, u)
+    start = (phiF @ H) / (phiF @ H @ u)
+    end = H @ u
 
     return start, end
 
@@ -670,6 +664,10 @@ def f1(u, eigvals, Z10, Z11):
         f = np.sum((Z10 + Z11 * u) * np.exp(-eigvals * u))
     return f
 
+
+### Deprecated functions 
+
+@deprecated("Use 'ExactPDFCalculator'")
 def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
     """
     Calculate Z constants for the exact open time pdf (Eq. 3.22, HJC90).
@@ -734,7 +732,6 @@ def Zxx(Q, eigen, A, kopen, QFF, QAF, QFA, expQFF, open):
 
     return Z00, Z10, Z11
 
-### Deprecated functions 
 
 @deprecated("Use 'QMatrix'")
 def GXY(QXX, QXY):

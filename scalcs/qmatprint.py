@@ -7,8 +7,8 @@ from tabulate import tabulate
 #from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
-from scalcs.scalcslib import HJCDwells, SCCorrelations
-from scalcs.pdfs import TCrits, ExpPDF, GeometricPDF, expPDF_exact_printout
+from scalcs.scalcslib import HJCDwells, SCCorrelations, ExactPDFCalculator
+from scalcs.pdfs import TCrits, ExpPDF, GeometricPDF  #, expPDF_exact_printout
 
 class QMatrixPrints(QMatrix):
     """
@@ -284,9 +284,9 @@ class HJCDwellsPrints(HJCDwells):
             'CALCULATED SINGLE CHANNEL HJC DWELL MEANS, PDFS, ETC....\n' +
             self.print_initial_HJC_vectors +
             self.print_HJC_asymptotic_open_time_pdf +
-            self.print_HJC_exact_open_time_pdf +
-            self.print_HJC_asymptotic_shut_time_pdf +
-            self.print_HJC_exact_shut_time_pdf
+            #self.print_HJC_exact_open_time_pdf +
+            self.print_HJC_asymptotic_shut_time_pdf #+
+            #self.print_HJC_exact_shut_time_pdf
             )
 
     @property
@@ -308,19 +308,6 @@ class HJCDwellsPrints(HJCDwells):
         info_str += '\nApparent mean open time (ms) = {0:.5g}\n'.format(self.apparent_mean_open_time * 1000)
         return info_str
 
-    @property
-    def print_HJC_exact_open_time_pdf(self):
-
-        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=True)
-        info_str = expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, '\nEXACT OPEN TIME DISTRIBUTION')
-        return info_str
-    
-    @property
-    def print_HJC_exact_shut_time_pdf(self):
-
-        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=False)
-        info_str = expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, '\nEXACT SHUT TIME DISTRIBUTION')
-        return info_str
 
     @property
     def print_HJC_asymptotic_shut_time_pdf(self):
@@ -342,7 +329,77 @@ class HJCDwellsPrints(HJCDwells):
 #        adjacent_str += ('Mean from direct calculation (ms) = {0:.6f}\n'.format(mean * 1000))
 #        return adjacent_str
 
-        
+class ExactPDFPrints(ExactPDFCalculator):
+    """ 
+    Print exact PDF coefficients for open and shut times.
+    
+    This class inherits from ExactPDFCalculator and adds functionality to print 
+    the exact probability density function (PDF) coefficients for both open and shut times.
+    """
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+        """
+        Initialize the ExactPDFPrints class.
+
+        Parameters
+        ----------
+        Q : ndarray
+            The Q matrix representing the transition rates.
+        kA, kB, kC, kD : int, optional
+            Dimensions of different state subspaces. Defaults are 1 for kA and kB, 0 for kC and kD.
+        """
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+
+    @property
+    def open_time_pdf(self):
+        """
+        Property to calculate and print the exact open time PDF coefficients.
+
+        Returns
+        -------
+        str
+            Formatted string containing the exact open time PDF coefficients and eigenvalues.
+        """
+        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=True)
+        return self._expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, 'EXACT OPEN TIME DISTRIBUTION')
+
+    @property
+    def shut_time_pdf(self):
+        """
+        Property to calculate and print the exact shut time PDF coefficients.
+
+        Returns
+        -------
+        str
+            Formatted string containing the exact shut time PDF coefficients and eigenvalues.
+        """
+        eigvals, gamma00, gamma10, gamma11 = self.exact_GAMAxx(open=False)
+        return self._expPDF_exact_printout(eigvals, gamma00, gamma10, gamma11, 'EXACT SHUT TIME DISTRIBUTION')
+
+    def _expPDF_exact_printout(self, eigs, gamma00, gamma10, gamma11, title):
+        """
+        Helper method to format and print the exact PDF coefficients.
+
+        Parameters
+        ----------
+        eigs : ndarray
+            Eigenvalues from the Q matrix.
+        gamma00, gamma10, gamma11 : ndarrays
+            PDF coefficients corresponding to the eigenvalues.
+        title : str
+            Title for the table output (e.g., 'EXACT OPEN TIME DISTRIBUTION').
+
+        Returns
+        -------
+        str
+            Formatted table of eigenvalues and PDF coefficients.
+        """
+        header = ['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)']
+        table = [[eigs[i], gamma00[i], gamma10[i], gamma11[i]] for i in range(len(eigs))]
+        return f"\n{title}\n" + tabulate(table, headers=header, tablefmt='orgtbl')
+
+
+
 
 class CorrelationPrints(SCCorrelations):
     """

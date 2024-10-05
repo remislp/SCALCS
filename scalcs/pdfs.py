@@ -309,18 +309,6 @@ class ExpPDF:
                                 tablefmt='orgtbl')       
         return info_str
 
-def expPDF_exact_printout(eigs, gamma00, gamma10, gamma11, title):
-    """
-    """
-
-    info_str = '\n'+title+ '\n'
-    table = []
-    for i in range(len(eigs)):
-        table.append([eigs[i], gamma00[i], gamma10[i], gamma11[i]])
-    info_str += tabulate(table, 
-                              headers=['Eigenvalue', 'g00(m)', 'g10(m)', 'g11(m)'], 
-                              tablefmt='orgtbl')       
-    return info_str
 
 
 class GeometricPDF:
