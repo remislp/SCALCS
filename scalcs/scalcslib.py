@@ -57,50 +57,8 @@ class AsymptoticPDF(HJCMatrix):
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
-
-
-
-
-class HJCDwells(HJCMatrix):
-    '''
-    Class to calculate dwell-time distributions (open and shut times) using
-    HJC models from the Q matrix.
-    '''
-
-    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
-        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
-
-    @property
-    def apparentPopen(self):
-        """Apparent open probability (Eq. from the mean open and shut times)."""
-        return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
-
-    @property
-    def apparent_mean_open_time(self):
-        """Calculate apparent mean open time using HJC probability density function."""
-        QexpQF = np.dot(self.QAF, self.expQFF)
-        return self.tres + np.dot(self.HJCphiA, np.dot(np.dot(self.dARSdS, QexpQF), self.uF))[0]
-
-    @property
-    def apparent_mean_shut_time(self):
-        """Calculate apparent mean shut time using HJC probability density function."""
-        QexpQA = np.dot(self.QFA, self.expQAA)
-        return self.tres + np.dot(self.HJCphiF, np.dot(np.dot(self.dFRSdS, QexpQA), self.uA))[0]
-
-    def HJC_asymptotic_open_time_pdf_components(self):
-        """Get the roots and areas for open times."""
-        return self._asymptotic_pdf_components(open=True)
-
-    def HJC_asymptotic_shut_time_pdf_components(self):
-        """Get the roots and areas for shut times."""
-        return self._asymptotic_pdf_components(open=False)
-
-    def _asymptotic_pdf_components(self, open):
-        """Helper to calculate roots and areas for open or shut times."""
-
-        roots = self.asymptotic_roots(open=open)
-        areas = self.asymptotic_areas(roots, open=open)
-        return roots, areas
+        #self.root_finder = RootFinder(Q, kA, kB, kC, kD, tres)
+        #self.derivative_calculator = DerivativeCalculator(Q, kA, kB, kC, kD, tres)
 
     def asymptotic_roots(self, open=True):
         """Find the roots for the asymptotic pdf (Eqs. 52-58, HJC92)."""
@@ -306,96 +264,12 @@ class HJCDwells(HJCMatrix):
         col = col.transpose()
         
         for i in range(k):
-            nom = np.dot(col[:,i].reshape((k, 1)), row[i,:].reshape((1, k)))
+            nom = col[:,i].reshape((k, 1)) @ row[i,:].reshape((1, k))
             W1_matrix = self.dW(roots[i], open=open)
-            denom = np.dot(np.dot(row[i,:].reshape((1, k)), W1_matrix), col[:,i].reshape((k, 1)))
+            denom = row[i,:].reshape((1, k)) @ W1_matrix @ col[:,i].reshape((k, 1))
             R[i] = nom / denom
         
         return R
-
-    def W(self, s, open=True): 
-        """
-        Compute the W(s) matrix (Eq. 52, HJC92).
-        WAA(s) = s * IA - HAA(s)
-        To evaluate WFF(s) exhange A by F and F by A in function call.
-
-        Parameters
-        ----------
-        s : float
-            Laplace transform argument.
-        open : bool, optional
-            Flag indicating the model type (open or closed), by default True.
-
-        Returns
-        -------
-        W : ndarray, shape (kA or kF, kA or kF)
-            W matrix for the given s value.
-        """
-
-        return s * (self.IA if open else self.IF) - self.H(s, open=open)
-
-    def H(self, s, open=True): 
-        """
-        Compute the H(s) matrix (Eq. 54, HJC92).
-        HAA(s) = QAA + QAF * (s*I - QFF) ^(-1) * (I - exp(-(s*I - QFF) * tau)) * QFA
-        To evaluate HFF(s) exhange A by F and F by A in function call.
-
-        Parameters
-        ----------
-        s : float
-            Laplace transform argument.
-        open : bool, optional
-            Flag indicating the model type (open or closed), by default True.
-
-        Returns
-        -------
-        H : ndarray, shape (kA or kF, kA or kF)
-            H matrix for the given s value.
-        """
-
-        Q_self1 = self.QAA if open else self.QFF
-        Q_other1 = self.QFF if open else self.QAA
-        Q_self2 = self.QAF if open else self.QFA
-        Q_other2 = self.QFA if open else self.QAF
-        I_other = self.IF if open else self.IA
-        invX = nplin.inv(s * I_other - Q_other1)
-        expX = qml.expQ(-(s * I_other - Q_other1), self.tres)
-
-        return Q_self1 + np.dot(np.dot(np.dot(Q_self2, invX), I_other - expX), Q_other2)
-
-    def dW(self, s, open=True):
-        """
-        Compute the derivative of W(s) with respect to s (Eq. 56, HJC92).
-        
-        W'(s) = I + QAF * [SFF(s) * (s*I - QFF)^(-1) - tau * (I - SFF(s))] * eGFA(s)
-        where SFF(s) = I - exp(-(s*I - QFF) * tau) (Eq. 17, HJC92)
-        and eGFA(s) = (s*I - QFF)^(-1) * QFA (Eq. 4, HJC92).
-
-        Parameters
-        ----------
-        s : float
-            Laplace transform argument.
-        open : bool, optional
-            Flag indicating the model type (open or closed), by default True.
-
-        Returns
-        -------
-        dW : ndarray, shape (kA or kF, kA or kF)
-        Derivative of W(s) with respect to s.
-        """
-
-        Q_self1 = self.QFF if open else self.QAA
-        Q_self2 = self.QAF if open else self.QFA
-        Q_other2 = self.QFA if open else self.QAF
-        I_self = self.IF if open else self.IA
-        I_other = self.IA if open else self.IF
-
-        X = s * I_self - Q_self1
-        invX = nplin.inv(X)
-        expX = qml.expQ(-X, self.tres)
-        S = I_self - expX
-        w1 = np.dot(S, invX) - self.tres * expX
-        return I_other + np.dot(np.dot(Q_self2, w1), np.dot(invX, Q_other2))
 
 
     @property
@@ -474,6 +348,49 @@ class HJCDwells(HJCMatrix):
         VF = self.IF - np.dot(np.dot(self.GFA, SAA), self.GAF)
         Q4 = invQFF + - np.dot(Q1 - Q2 + Q3, nplin.inv(VF))
         return np.dot(np.dot(nplin.inv(VF), Q4), invQFF)
+
+
+class HJCDwells(AsymptoticPDF):
+    '''
+    Class to calculate dwell-time distributions (open and shut times) using
+    HJC models from the Q matrix.
+    '''
+
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
+
+    @property
+    def apparentPopen(self):
+        """Apparent open probability (Eq. from the mean open and shut times)."""
+        return self.apparent_mean_open_time / (self.apparent_mean_open_time + self.apparent_mean_shut_time)
+
+    @property
+    def apparent_mean_open_time(self):
+        """Calculate apparent mean open time using HJC probability density function."""
+        QexpQF = np.dot(self.QAF, self.expQFF)
+        return self.tres + np.dot(self.HJCphiA, np.dot(np.dot(self.dARSdS, QexpQF), self.uF))[0]
+
+    @property
+    def apparent_mean_shut_time(self):
+        """Calculate apparent mean shut time using HJC probability density function."""
+        QexpQA = np.dot(self.QFA, self.expQAA)
+        return self.tres + np.dot(self.HJCphiF, np.dot(np.dot(self.dFRSdS, QexpQA), self.uA))[0]
+
+    def HJC_asymptotic_open_time_pdf_components(self):
+        """Get the roots and areas for open times."""
+        return self._asymptotic_pdf_components(open=True)
+
+    def HJC_asymptotic_shut_time_pdf_components(self):
+        """Get the roots and areas for shut times."""
+        return self._asymptotic_pdf_components(open=False)
+
+    def _asymptotic_pdf_components(self, open):
+        """Helper to calculate roots and areas for open or shut times."""
+
+        roots = self.asymptotic_roots(open=open)
+        areas = self.asymptotic_areas(roots, open=open)
+        return roots, areas
+
 
 class ExactPDFCalculator(HJCMatrix):
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):

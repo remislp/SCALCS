@@ -439,6 +439,43 @@ class HJCMatrix(QMatrix):
             return np.array([1])
         S = np.concatenate(((I_self - np.dot(eG_self, eG_other)), u_self), axis=1)
         return np.dot(u_self.T, nplin.inv(np.dot(S, S.T)))[0]
+    
+    def W(self, s, open=True):
+        """
+        Compute the W(s) matrix (Eq. 52, HJC92).
+        """
+        return s * (self.IA if open else self.IF) - self.H(s, open=open)
+
+    def H(self, s, open=True):
+        """
+        Compute the H(s) matrix (Eq. 54, HJC92).
+        """
+        Q_self1 = self.QAA if open else self.QFF
+        Q_other1 = self.QFF if open else self.QAA
+        Q_self2 = self.QAF if open else self.QFA
+        Q_other2 = self.QFA if open else self.QAF
+        I_other = self.IF if open else self.IA
+        invX = nplin.inv(s * I_other - Q_other1)
+        expX = expQ(-(s * I_other - Q_other1), self.tres)
+
+        return Q_self1 + np.dot(np.dot(np.dot(Q_self2, invX), I_other - expX), Q_other2)
+
+    def dW(self, s, open=True):
+        """
+        Compute the derivative of W(s) with respect to s (Eq. 56, HJC92).
+        """
+        Q_self1 = self.QFF if open else self.QAA
+        Q_self2 = self.QAF if open else self.QFA
+        Q_other2 = self.QFA if open else self.QAF
+        I_self = self.IF if open else self.IA
+        I_other = self.IA if open else self.IF
+
+        X = s * I_self - Q_self1
+        invX = nplin.inv(X)
+        expX = expQ(-X, self.tres)
+        S = I_self - expX
+        w1 = np.dot(S, invX) - self.tres * expX
+        return I_other + np.dot(np.dot(Q_self2, w1), np.dot(invX, Q_other2))
 
 
 ### Functions to review
