@@ -38,7 +38,6 @@ __date__ ="$07-Dec-2010 20:29:14$"
 import sys
 from math import*
 from decimal import*
-#import random
 from deprecated import deprecated
 
 import scipy.optimize as so
@@ -46,19 +45,96 @@ import numpy as np
 from numpy import linalg as nplin
 
 from scalcs import qmatlib as qml
-#import bisectHJC
 from scalcs import pdfs
-#import optimize
-
 from scalcs.qmatlib import QMatrix, HJCMatrix
 
-class AsymptoticPDF(HJCMatrix):
+class DerivativeCalculator(HJCMatrix):
+    """Handles derivative evaluations of the Laplace transform."""
+
+    @property
+    def dARSdS(self):
+        r"""
+        Evaluate the derivative with respect to s of the Laplace transform of the
+        survival function (Eq. 3.6, CHS96) for open states:
+
+        .. math::
+
+        \left[ -\frac{\text{d}}{\text{d}s} {^\cl{A}\!\bs{R}^*(s)} \right]_{s=0}
+
+        For same evaluation for shut states exhange A by F and F by A in function call.
+
+        SFF = I - exp(QFF * tres)
+        First evaluate [dVA(s) / ds] * s = 0.
+        dVAds = -inv(QAA) * GAF * SFF * GFA - GAF * SFF * inv(QFF) * GFA +
+        + tres * GAF * expQFF * GFA
+
+        Then: DARS = inv(VA) * QAA^(-2) - inv(VA) * dVAds * inv(VA) * inv(QAA) =
+        = inv(VA) * [inv(QAA) - dVAds * inv(VA)] * inv(QAA)
+        where VA = I - GAF * SFF * GFA
+
+        Returns
+        -------
+        DARS : array_like, shape (kA, kA)
+        """
+
+        invQAA = nplin.inv(self.QAA)
+        invQFF = nplin.inv(self.QFF)
+
+        SFF = self.IF - self.expQFF
+        Q1 = self.tres * np.dot(self.GAF, np.dot(self.expQFF, self.GFA))
+        Q2 = np.dot(self.GAF, np.dot(SFF, np.dot(invQFF, self.GFA)))
+        Q3 = np.dot(np.dot(np.dot(-invQAA, self.GAF), SFF), self.GFA)
+
+        VA = self.IA - np.dot(np.dot(self.GAF, SFF), self.GFA)
+        Q4 = invQAA + - np.dot(Q1 - Q2 + Q3, nplin.inv(VA))
+        return np.dot(np.dot(nplin.inv(VA), Q4), invQAA)
+
+
+    @property
+    def dFRSdS(self):
+        r"""
+        Evaluate the derivative with respect to s of the Laplace transform of the
+        survival function (Eq. 3.6, CHS96) for open states:
+
+        .. math::
+
+        \left[ -\frac{\text{d}}{\text{d}s} {^\cl{A}\!\bs{R}^*(s)} \right]_{s=0}
+
+        For same evaluation for shut states exhange A by F and F by A in function call.
+
+        SFF = I - exp(QFF * tres)
+        First evaluate [dVA(s) / ds] * s = 0.
+        dVAds = -inv(QAA) * GAF * SFF * GFA - GAF * SFF * inv(QFF) * GFA +
+        + tres * GAF * expQFF * GFA
+
+        Then: DARS = inv(VA) * QAA^(-2) - inv(VA) * dVAds * inv(VA) * inv(QAA) =
+        = inv(VA) * [inv(QAA) - dVAds * inv(VA)] * inv(QAA)
+        where VA = I - GAF * SFF * GFA
+
+        Returns
+        -------
+        DARS : array_like, shape (kA, kA)
+        """
+
+        invQAA = nplin.inv(self.QAA)
+        invQFF = nplin.inv(self.QFF)
+
+        SAA = self.IA - self.expQAA
+        Q1 = self.tres * np.dot(self.GFA, np.dot(self.expQAA, self.GAF))
+        Q2 = np.dot(self.GFA, np.dot(SAA, np.dot(invQAA, self.GAF)))
+        Q3 = np.dot(np.dot(np.dot(-invQFF, self.GFA), SAA), self.GAF)
+
+        VF = self.IF - np.dot(np.dot(self.GFA, SAA), self.GAF)
+        Q4 = invQFF + - np.dot(Q1 - Q2 + Q3, nplin.inv(VF))
+        return np.dot(np.dot(nplin.inv(VF), Q4), invQFF)
+    
+
+class AsymptoticPDFCalculator(HJCMatrix):
     """Asymptotic PDF calculations"""
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
-        #self.root_finder = RootFinder(Q, kA, kB, kC, kD, tres)
-        #self.derivative_calculator = DerivativeCalculator(Q, kA, kB, kC, kD, tres)
+        self.derivative_calculator = DerivativeCalculator(Q, kA, kB, kC, kD, tres)
 
     def asymptotic_roots(self, open=True):
         """Find the roots for the asymptotic pdf (Eqs. 52-58, HJC92)."""
@@ -209,7 +285,6 @@ class AsymptoticPDF(HJCMatrix):
         sys.stderr.write("bisectHJC: Warning: Unable to split intervals for bisection after 1000 attempts.\n")
         return sa, sc, sb, nga, ngc, ngb
 
-
     def asymptotic_areas(self, roots, open=True):
         """
         Calculate the areas of the asymptotic probability density function (Eq. 58, HJC92).
@@ -271,86 +346,18 @@ class AsymptoticPDF(HJCMatrix):
         
         return R
 
-
     @property
     def dARSdS(self):
-        r"""
-        Evaluate the derivative with respect to s of the Laplace transform of the
-        survival function (Eq. 3.6, CHS96) for open states:
-
-        .. math::
-
-        \left[ -\frac{\text{d}}{\text{d}s} {^\cl{A}\!\bs{R}^*(s)} \right]_{s=0}
-
-        For same evaluation for shut states exhange A by F and F by A in function call.
-
-        SFF = I - exp(QFF * tres)
-        First evaluate [dVA(s) / ds] * s = 0.
-        dVAds = -inv(QAA) * GAF * SFF * GFA - GAF * SFF * inv(QFF) * GFA +
-        + tres * GAF * expQFF * GFA
-
-        Then: DARS = inv(VA) * QAA^(-2) - inv(VA) * dVAds * inv(VA) * inv(QAA) =
-        = inv(VA) * [inv(QAA) - dVAds * inv(VA)] * inv(QAA)
-        where VA = I - GAF * SFF * GFA
-
-        Returns
-        -------
-        DARS : array_like, shape (kA, kA)
-        """
-
-        invQAA = nplin.inv(self.QAA)
-        invQFF = nplin.inv(self.QFF)
-
-        SFF = self.IF - self.expQFF
-        Q1 = self.tres * np.dot(self.GAF, np.dot(self.expQFF, self.GFA))
-        Q2 = np.dot(self.GAF, np.dot(SFF, np.dot(invQFF, self.GFA)))
-        Q3 = np.dot(np.dot(np.dot(-invQAA, self.GAF), SFF), self.GFA)
-
-        VA = self.IA - np.dot(np.dot(self.GAF, SFF), self.GFA)
-        Q4 = invQAA + - np.dot(Q1 - Q2 + Q3, nplin.inv(VA))
-        return np.dot(np.dot(nplin.inv(VA), Q4), invQAA)
-
+        """Public interface to compute dARSdS."""
+        return self.derivative_calculator.dARSdS
 
     @property
-    def dFRSdS(self): 
-        r"""
-        Evaluate the derivative with respect to s of the Laplace transform of the
-        survival function (Eq. 3.6, CHS96) for open states:
-
-        .. math::
-
-        \left[ -\frac{\text{d}}{\text{d}s} {^\cl{A}\!\bs{R}^*(s)} \right]_{s=0}
-
-        For same evaluation for shut states exhange A by F and F by A in function call.
-
-        SFF = I - exp(QFF * tres)
-        First evaluate [dVA(s) / ds] * s = 0.
-        dVAds = -inv(QAA) * GAF * SFF * GFA - GAF * SFF * inv(QFF) * GFA +
-        + tres * GAF * expQFF * GFA
-
-        Then: DARS = inv(VA) * QAA^(-2) - inv(VA) * dVAds * inv(VA) * inv(QAA) =
-        = inv(VA) * [inv(QAA) - dVAds * inv(VA)] * inv(QAA)
-        where VA = I - GAF * SFF * GFA
-
-        Returns
-        -------
-        DARS : array_like, shape (kA, kA)
-        """
-
-        invQAA = nplin.inv(self.QAA)
-        invQFF = nplin.inv(self.QFF)
-
-        SAA = self.IA - self.expQAA
-        Q1 = self.tres * np.dot(self.GFA, np.dot(self.expQAA, self.GAF))
-        Q2 = np.dot(self.GFA, np.dot(SAA, np.dot(invQAA, self.GAF)))
-        Q3 = np.dot(np.dot(np.dot(-invQFF, self.GFA), SAA), self.GAF)
-
-        VF = self.IF - np.dot(np.dot(self.GFA, SAA), self.GAF)
-        Q4 = invQFF + - np.dot(Q1 - Q2 + Q3, nplin.inv(VF))
-        return np.dot(np.dot(nplin.inv(VF), Q4), invQFF)
+    def dFRSdS(self):
+        """Public interface to compute dFRSdS."""
+        return self.derivative_calculator.dFRSdS
 
 
-class HJCDwells(AsymptoticPDF):
+class AsymptoticPDF(AsymptoticPDFCalculator):
     '''
     Class to calculate dwell-time distributions (open and shut times) using
     HJC models from the Q matrix.
@@ -358,7 +365,7 @@ class HJCDwells(AsymptoticPDF):
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
-
+        
     @property
     def apparentPopen(self):
         """Apparent open probability (Eq. from the mean open and shut times)."""
@@ -386,14 +393,13 @@ class HJCDwells(AsymptoticPDF):
 
     def _asymptotic_pdf_components(self, open):
         """Helper to calculate roots and areas for open or shut times."""
-
         roots = self.asymptotic_roots(open=open)
         areas = self.asymptotic_areas(roots, open=open)
         return roots, areas
 
 
 class ExactPDFCalculator(HJCMatrix):
-    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         """
         Initialize the ExactPDFCalculator.
 
@@ -404,7 +410,7 @@ class ExactPDFCalculator(HJCMatrix):
         kA, kB, kC, kD : int, optional
             Dimensions of different state subspaces. Defaults are 1 for kA and kB, 0 for kC and kD.
         """
-        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
    
     def exact_GAMAxx(self, open=True):
         """
@@ -493,7 +499,7 @@ class ExactPDFCalculator(HJCMatrix):
 
 
 
-class AdjacentDwells(HJCDwells):
+class AdjacentDwells:
     ''' Print adjacent dwell time distributions. '''
 
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):

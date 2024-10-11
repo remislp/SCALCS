@@ -377,7 +377,7 @@ class HJCMatrix(QMatrix):
     """ Class to store HJC basic calculations. """
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
-        self._tres = tres
+        self.tres = tres
 
     @property
     def tres(self):

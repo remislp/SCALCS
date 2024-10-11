@@ -1,14 +1,10 @@
-import sys
 from math import sqrt
-import numpy as np
 from tabulate import tabulate
-#from numpy import linalg as nplin
 
-#from scalcs import qmatlib as qml
 from scalcs.qmatlib import QMatrix
 from scalcs.scburst import SCBurst
-from scalcs.scalcslib import HJCDwells, SCCorrelations, ExactPDFCalculator
-from scalcs.pdfs import TCrits, ExpPDF, GeometricPDF  #, expPDF_exact_printout
+from scalcs.scalcslib import SCCorrelations, ExactPDFCalculator, AsymptoticPDF
+from scalcs.pdfs import TCrits, ExpPDF, GeometricPDF
 
 class QMatrixPrints(QMatrix):
     """
@@ -255,7 +251,6 @@ class SCBurstPrints(SCBurst):
 
 
 
-
 class TCritPrints(QMatrix):
     def __init__(self, mec):
         QMatrix.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
@@ -266,56 +261,63 @@ class TCritPrints(QMatrix):
     def print_all(self):
         return self.tcrits.print_critical_times_summary()
 
+class AsymptoticPDFPrints(AsymptoticPDF):
+    """ 
+    Class to print asymptotic PDF components for open and shut times.
+    Inherits from AsymptoticPDF.
+    """
 
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
+        """
+        Initialize the AsymptoticPDFPrints class.
 
-class HJCDwellsPrints(HJCDwells):
-    '''
-    Print Q-Matrix HJC stuff.
-    '''
-
-    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
-        HJCDwells.__init__(self, Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        Parameters
+        ----------
+        Q : ndarray
+            Transition rate matrix.
+        kA, kB, kC, kD : int, optional
+            Dimensions of different state subspaces. Defaults are 1 for kA and kB, 0 for kC and kD.
+        tres : float, optional
+            Resolution time. Default is 0.0.
+        """
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
 
     @property
     def print_all(self):
-        """ Output HJC distribution calculations. """
-
-        return ('\n*******************************************\n' +
-            'CALCULATED SINGLE CHANNEL HJC DWELL MEANS, PDFS, ETC....\n' +
-            self.print_initial_HJC_vectors +
-            self.print_HJC_asymptotic_open_time_pdf +
-            #self.print_HJC_exact_open_time_pdf +
-            self.print_HJC_asymptotic_shut_time_pdf #+
-            #self.print_HJC_exact_shut_time_pdf
-            )
+        """ Print the results of the asymptotic PDF calculations including open and shut times. """
+        return (
+            '\n*******************************************\n'
+            'CALCULATED SINGLE CHANNEL ASYMPTOTIC DWELL MEANS, PDFS, ETC....\n'
+            f'{self.print_initial_HJC_vectors}'
+            f'{self.print_asymptotic_open_time_pdf}'
+            f'{self.print_asymptotic_shut_time_pdf}'
+        )
 
     @property
     def print_initial_HJC_vectors(self):
-        initial_str = ('\nInitial vector for HJC openings (tres={0:.0f} us) =\n'.format(1e6 * self.tres))
-        for i in range(self.kA):
-            initial_str += ('\t{0:.5g}'.format(self.HJCphiA[i]))
-        initial_str += ('\nInitial vector for HJC shuttings =\n')
-        for i in range(self.kF):
-            initial_str += ('\t{0:.5g}'.format(self.HJCphiF[i]))
-        initial_str += '\n'
-        return initial_str
+        """ Print the initial HJC vectors for openings and shuttings.   """
+        initial_str = f'\nInitial vector for HJC openings (tres={1e6 * self.tres:.0f} us):\n'
+        initial_str += '\n'.join([f'\t{self.HJCphiA[i]:.5g}' for i in range(self.kA)])
+        initial_str += '\nInitial vector for HJC shuttings:\n'
+        initial_str += '\n'.join([f'\t{self.HJCphiF[i]:.5g}' for i in range(self.kF)])
+        return initial_str + '\n'
 
     @property
-    def print_HJC_asymptotic_open_time_pdf(self):
-
+    def print_asymptotic_open_time_pdf(self):
+        """ Print the asymptotic open time PDF components.  """
         e, a = self.HJC_asymptotic_open_time_pdf_components()
-        info_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC OPEN TIME DISTRIBUTION')
-        info_str += '\nApparent mean open time (ms) = {0:.5g}\n'.format(self.apparent_mean_open_time * 1000)
-        return info_str
-
+        pdf_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC OPEN TIME DISTRIBUTION')
+        pdf_str += f'\nApparent mean open time (ms): {self.apparent_mean_open_time * 1000:.5g}\n'
+        return pdf_str
 
     @property
-    def print_HJC_asymptotic_shut_time_pdf(self):
-
+    def print_asymptotic_shut_time_pdf(self):
+        """ Print the asymptotic shut time PDF components. """
         e, a = self.HJC_asymptotic_shut_time_pdf_components()
-        info_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
-        info_str += ('\nApparent mean shut time (ms) = {0:.5g}\n'.format(self.apparent_mean_shut_time * 1000))
-        return info_str
+        pdf_str = ExpPDF(1 / e, a).printout_asymptotic(self.tres, '\nASYMPTOTIC SHUT TIME DISTRIBUTION')
+        pdf_str += f'\nApparent mean shut time (ms): {self.apparent_mean_shut_time * 1000:.5g}\n'
+        return pdf_str
+
     
     #TODO: move this function into 'adjacent dwells' class
 #    def print_adjacent_dwells(self, t1, t2):
@@ -337,7 +339,7 @@ class ExactPDFPrints(ExactPDFCalculator):
     the exact probability density function (PDF) coefficients for both open and shut times.
     """
 
-    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
+    def __init__(self, Q, kA=1, kB=1, kC=0, kD=0, tres=0.0):
         """
         Initialize the ExactPDFPrints class.
 
@@ -348,7 +350,7 @@ class ExactPDFPrints(ExactPDFCalculator):
         kA, kB, kC, kD : int, optional
             Dimensions of different state subspaces. Defaults are 1 for kA and kB, 0 for kC and kD.
         """
-        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
+        super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD, tres=tres)
 
     @property
     def open_time_pdf(self):
