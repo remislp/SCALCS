@@ -13,7 +13,7 @@ from scalcs import scalcslib as scl
 from scalcs import popen
 from gui import myqtcommon
 
-from scalcs.qmatprint import QMatrixPrints, TCritPrints, CorrelationPrints
+from scalcs.qmatprint import QMatrixPrints, TCritPrints, CorrelationPrints, ExactPDFPrints, AsymptoticPDFPrints
 
 class ScalcsMenu(QMenu):
     """
@@ -237,10 +237,15 @@ class ScalcsMenu(QMenu):
         self.parent.mec.set_eff('c', self.parent.conc)
 
         try:
-            text = scl.printout_occupancies(self.parent.mec, self.parent.tres)
-            self.parent.log.write(text)
-            text = scl.printout_distributions(self.parent.mec, self.parent.tres)
-            self.parent.log.write(text)
+            q_matrix = QMatrixPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD)
+            q_asymp = AsymptoticPDFPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD, self.parent.tres)
+            q_exact = ExactPDFPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD, self.parent.tres)
+            #text = scl.printout_occupancies(self.parent.mec, self.parent.tres)
+            self.parent.log.write(q_matrix.print_DC_table)
+            #text = scl.printout_distributions(self.parent.mec, self.parent.tres)
+            self.parent.log.write(q_matrix.print_open_time_pdf)
+            self.parent.log.write(q_asymp.print_asymptotic_open_time_pdf)
+            self.parent.log.write(q_exact.open_time_pdf)
         except:
             sys.stderr.write("main: Warning: unable to prepare printout.")
         
@@ -307,9 +312,18 @@ class ScalcsMenu(QMenu):
         self.parent.txtPltBox.append(str)
 
         self.parent.mec.set_eff('c', self.parent.conc)
-        #self.parent.log.write(scl.printout_tcrit(self.parent.mec))
-        tcrits = TCritPrints(self.parent.mec)
-        self.parent.log.write(tcrits.print_all)
+        try:
+            q_matrix = QMatrixPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD)
+            q_asymp = AsymptoticPDFPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD, self.parent.tres)
+            q_exact = ExactPDFPrints(self.parent.mec.Q, self.parent.mec.kA, self.parent.mec.kB, self.parent.mec.kC, self.parent.mec.kD, self.parent.tres)
+            self.parent.log.write(q_matrix.print_shut_time_pdf)
+            self.parent.log.write(q_asymp.print_asymptotic_shut_time_pdf)
+            self.parent.log.write(q_exact.shut_time_pdf)
+            tcrits = TCritPrints(self.parent.mec)
+            self.parent.log.write(tcrits.print_all)
+        except:
+            sys.stderr.write("main: Warning: unable to prepare printout.")
+
         t, ipdf, epdf, apdf = scpl.shut_time_pdf(self.parent.mec, self.parent.tres)
         self.parent.present_plot = np.vstack((t, ipdf, epdf, apdf))
 

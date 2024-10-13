@@ -1101,7 +1101,7 @@ def phiHJC(eGAF, eGFA, kA):
 
     return phi
 
-@deprecated("Use 'scalcslib.CSDwells'")
+@deprecated("Use 'scalcslib.DerivativeCalculator")
 def dARSdS(tres, QAA, QFF, GAF, GFA, expQFF, kA, kF):
     r"""
     Evaluate the derivative with respect to s of the Laplace transform of the
@@ -1173,6 +1173,7 @@ def dARSdS(tres, QAA, QFF, GAF, GFA, expQFF, kA, kF):
 
     return DARS
 
+@deprecated("Use 'HJCMatrix'")
 def H(s, tres, QAA, QFF, QAF, QFA, kF):
     """
     Evaluate H(s) funtion (Eq. 54, HJC92).
@@ -1205,6 +1206,7 @@ def H(s, tres, QAA, QFF, QAF, QFA, kF):
     H = QAA + np.dot(np.dot(np.dot(QAF, invXFF), IF - expXFF), QFA)
     return H
 
+@deprecated("Use 'HJCMatrix'")
 def W(s, tres, QAA, QFF, QAF, QFA, kA, kF):
     """
     Evaluate W(s) function (Eq. 52, HJC92).
@@ -1236,6 +1238,7 @@ def W(s, tres, QAA, QFF, QAF, QFA, kA, kF):
     W = s * IA - H(s, tres, QAA, QFF, QAF, QFA, kF)
     return W
 
+@deprecated("Use 'HJCMatrix'")
 def dW(s, tres, QAF, QFF, QFA, kA, kF):
     """
     Evaluate the derivative with respect to s of the matrix W(s) at the root s
@@ -1275,7 +1278,7 @@ def dW(s, tres, QAF, QFF, QFA, kA, kF):
     dW = IA + np.dot(np.dot(QAF, w1), eGFAs)
     return dW
 
-
+@deprecated("Use 'HJCMatrix'")
 def AR(roots, tres, QAA, QFF, QAF, QFA, kA, kF):
     """
     

@@ -250,7 +250,6 @@ class SCBurstPrints(SCBurst):
         return ''.join(sections)
 
 
-
 class TCritPrints(QMatrix):
     def __init__(self, mec):
         QMatrix.__init__(self, mec.Q, kA=mec.kA, kB=mec.kB, kC=mec.kC, kD=mec.kD)
@@ -401,13 +400,8 @@ class ExactPDFPrints(ExactPDFCalculator):
         return f"\n{title}\n" + tabulate(table, headers=header, tablefmt='orgtbl')
 
 
-
-
 class CorrelationPrints(SCCorrelations):
-    """
-    Prints various correlation and Q-matrix calculations.
-    """
-
+    """ Prints various correlation and Q-matrix calculations. """
     def __init__(self, Q, kA=1, kB=1, kC=0, kD=0):
         super().__init__(Q, kA=kA, kB=kB, kC=kC, kD=kD)
         self.varA, self.varF = self._variance(open=True), self._variance(open=False)
@@ -422,17 +416,13 @@ class CorrelationPrints(SCCorrelations):
 
     @property
     def print_ranks(self):
-        """
-        Print ranks and eigenvalues of the matrices.
-        """
+        """ Print ranks and eigenvalues of the matrices. """
         return (f"\n Ranks of GAF, GFA = {self.rank_GAF}, {self.rank_GFA}"
                 f"\n Rank of GFA * GAF = {self.rank_XFF}"
                 f"\n Rank of GAF * GFA = {self.rank_XAA}")
 
     def _format_correlation_info(self, var, var_n, n, correlation_limit, correlation_type):
-        """
-        Helper method to format correlation information for open and shut times.
-        """
+        """ Helper method to format correlation information for open and shut times. """
         percentage_diff = 100 * (sqrt(var_n / (n * n)) - sqrt(var / n)) / sqrt(var / n)
         limiting_percentage = 100 * (sqrt(1 + 2 * correlation_limit / var) - 1)
         
@@ -456,9 +446,7 @@ class CorrelationPrints(SCCorrelations):
 
     @property
     def print_open_correlations(self):
-        """
-        Print open-open time correlations.
-        """
+        """ Print open-open time correlations. """
 
         varA_n = self.variance_n(50, open=True)
         correlation_limit_A = self.correlation_limit(open=True)
@@ -466,14 +454,11 @@ class CorrelationPrints(SCCorrelations):
         open_str = '\n\n OPEN-OPEN TIME CORRELATIONS'
         open_str += self._format_correlation_info(self.varA, varA_n, 50, correlation_limit_A, 'open')
         open_str += self._format_correlation_coefficients(self.varA, 5, open=True)
-        
         return open_str
 
     @property
     def print_shut_correlations(self):
-        """
-        Print shut-shut time correlations.
-        """
+        """ Print shut-shut time correlations. """
 
         varF_n = self.variance_n(50, open=False)
         correlation_limit_F = self.correlation_limit(open=False)
@@ -481,21 +466,17 @@ class CorrelationPrints(SCCorrelations):
         shut_str = '\n\n SHUT-SHUT TIME CORRELATIONS'
         shut_str += self._format_correlation_info(self.varF, varF_n, 50, correlation_limit_F, 'shut')
         shut_str += self._format_correlation_coefficients(self.varF, 5, open=False)
-
         return shut_str
 
     @property
     def print_open_shut_correlations(self):
-        """
-        Print open-shut time correlations.
-        """
+        """ Print open-shut time correlations. """
         open_shut_str = '\n\n OPEN - SHUT TIME CORRELATIONS'
         open_shut_str += '\nCorrelation coefficients, r(k), for up to lag k = 5:'
         
         for i in range(5):
             covAF = self.covariance_AF(i + 1)
             open_shut_str += f"\nr({i+1}) = {self._coefficient(covAF, self.varA, self.varF):.5g}"
-        
         return open_shut_str
 
 

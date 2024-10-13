@@ -228,11 +228,8 @@ class TCrits:
 
         return summary_str
 
-
     def misclassified_printout(self, tcrit, enf, ens, pf, ps):
-        """
-        """
-
+        """    """
         return ('tcrit = {0:.5g} ms\n'.format(tcrit * 1000) +
             '% misclassified: short = {0:.5g};'.format(pf * 100) +
             ' long = {0:.5g}\n'.format(ps * 100) +
@@ -241,19 +238,8 @@ class TCrits:
             'Total # misclassified (out of 100) = {0:.5g}\n\n'
             .format((enf + ens) * 100))
 
-
     def printout_tcrit(self):
-        """
-        Output calculations based on division into bursts by critical time (tcrit).
-
-        Parameters
-        ----------
-        mec : dcpyps.Mechanism
-            The mechanism to be analysed.
-        output : output device
-            Default device: sys.stdout
-        """
-          
+        """ Output calculations based on division into bursts by critical time (tcrit).  """
         tcrit_str = ('\nSUMMARY of tcrit values:\n' +
             'Components  DC\tC&N\tJackson\n')
         for i in range(self.num_components):
@@ -310,7 +296,6 @@ class ExpPDF:
         return info_str
 
 
-
 class GeometricPDF:
     def __init__(self, rho, w):
         self.rho = rho
@@ -337,6 +322,7 @@ class GeometricPDF:
 
 ###############   DEPRECATED FUNCTIONS   ###########################
 
+@deprecated("Use '...'")
 def geometricPDF_mean_sd(rho, w):
     """
     Calculate mean and standard deviation for geometric PDF.
@@ -363,6 +349,7 @@ def geometricPDF_mean_sd(rho, w):
 
     return m, sd
 
+@deprecated("Use '...'")
 def geometricPDF_printout(rho, w):
     """
     """
