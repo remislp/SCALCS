@@ -15,11 +15,9 @@ import os
 from scalcs import scalcsio
 from samples import samples
 from scalcs import version
-from scalcs import scalcslib as scl
 from scalcs import scplotlib as scpl
 from scalcs import popen
-from scalcs import scburst
-
+from scalcs.qmatprint import QMatrixPrints, SCBurstPrints, TCritPrints, ExactPDFPrints, AsymptoticPDFPrints
 
 def create_parser():
     parser = argparse.ArgumentParser(
@@ -96,8 +94,10 @@ def console_demo(demomec):
 
     #     BURST CALCULATIONS
     sys.stdout.write('\n\nCalculating burst properties:')
-    sys.stdout.write('\nAgonist concentration = %e M' %conc)
-    sys.stdout.write(scburst.printout_pdfs(demomec))
+    sys.stdout.write('\nAgonist concentration = %e M' %conc)    
+    # Calculating burst parameters
+    q_burst = SCBurstPrints(demomec.Q, demomec.kA, demomec.kB, demomec.kC, demomec.kD)
+    print(q_burst.print_all)
 
     t, fbst = scpl.burst_length_pdf(demomec)
     plt.subplot(222)
@@ -118,9 +118,20 @@ def console_demo(demomec):
 
     #     OPEN TIME DISTRIBUTION
     sys.stdout.write('\n\nCalculating open and shut time distributions:')
-    sys.stdout.write(scl.printout_occupancies(demomec, tres))
-    sys.stdout.write(scl.printout_distributions(demomec, tres))
-    sys.stdout.write(scl.printout_tcrit(demomec))
+    q_matrix = QMatrixPrints(demomec.Q, demomec.kA, demomec.kB, demomec.kC, demomec.kD)
+    sys.stdout.write(q_matrix.print_DC_table)
+
+    q_asymp = AsymptoticPDFPrints(demomec.Q, demomec.kA, demomec.kB, demomec.kC, demomec.kD, tres)
+    q_exact = ExactPDFPrints(demomec.Q, demomec.kA, demomec.kB, demomec.kC, demomec.kD, tres)
+    sys.stdout.write(q_matrix.print_open_time_pdf)
+    sys.stdout.write(q_asymp.print_asymptotic_open_time_pdf)
+    sys.stdout.write(q_exact.open_time_pdf)
+    sys.stdout.write(q_matrix.print_shut_time_pdf)
+    sys.stdout.write(q_asymp.print_asymptotic_shut_time_pdf)
+    sys.stdout.write(q_exact.shut_time_pdf)
+
+    tcrits = TCritPrints(demomec)
+    sys.stdout.write(tcrits.print_all)
     t, ipdf, epdf, apdf = scpl.open_time_pdf(demomec, tres)
 
     plt.subplot(223)
